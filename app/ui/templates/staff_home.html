@@ -8,5 +8,8 @@
     <h1>Staff queue</h1>
     <p>Requires Firebase custom claim role=admin. Queue is not wired yet.</p>
     <p><a href="/">User home</a></p>
+    {% if studyforge_web_url %}
+    <p><a href="{{ studyforge_web_url }}">Back to StudyForge</a></p>
+    {% endif %}
   </body>
 </html>

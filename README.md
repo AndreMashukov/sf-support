@@ -14,6 +14,7 @@ docker compose up --build
 - App: http://127.0.0.1:8000
 - Health: http://127.0.0.1:8000/health
 - Postgres: `127.0.0.1:5433` (user/password/db `support`)
+- Set `STUDYFORGE_WEB_URL=http://localhost:4200` so the UI can link back to StudyForge web.
 
 Local without Docker (Postgres must already be up):
 

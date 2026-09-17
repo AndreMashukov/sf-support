@@ -1,10 +1,10 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.auth import PrincipalDep, require_staff
+from app.auth import PrincipalDep, StaffDep
 from app.models import TicketCategory
 from app.rag.graph import run_how_it_works
 
@@ -69,12 +69,10 @@ def post_message(
 
 
 @router.post("/tickets/{ticket_id}/close")
-def close_ticket(
-    ticket_id: UUID, principal: PrincipalDep = Depends(require_staff)
-) -> dict:
+def close_ticket(ticket_id: UUID, principal: StaffDep) -> dict:
     return {"id": str(ticket_id), "closed_by": principal.user_id}
 
 
 @router.get("/articles")
-def list_articles(_principal: PrincipalDep = Depends(require_staff)) -> dict:
+def list_articles(_principal: StaffDep) -> dict:
     return {"items": []}

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     together_ai_api_key: str = ""
     together_chat_model: str = "zai-org/GLM-5.2"
     langsmith_project: str = "study-forge-support"
+    studyforge_web_url: str = ""
 
 
 settings = Settings()

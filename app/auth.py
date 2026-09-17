@@ -29,3 +29,6 @@ def require_staff(principal: PrincipalDep) -> Principal:
     if not principal.is_staff:
         raise HTTPException(status_code=403, detail="Staff only")
     return principal
+
+
+StaffDep = Annotated[Principal, Depends(require_staff)]

@@ -31,6 +31,10 @@ dev = [
 line-length = 88
 target-version = "py312"
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["seed*", "tests*"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
