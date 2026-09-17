@@ -1,0 +1,11 @@
+---
+description: Firebase auth and ticket access
+globs: app/auth.py,app/api/**/*.py,app/models.py
+---
+
+# Auth and tickets
+
+- Verify Firebase ID tokens. Do not trust client-supplied `user_id`.
+- Staff only when `role == admin`.
+- Users see only their tickets. Staff see all.
+- No Postgres RLS in v1. Do not store tokens in messages.

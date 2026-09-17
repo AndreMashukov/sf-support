@@ -1,0 +1,11 @@
+---
+description: Python and FastAPI conventions
+globs: app/**/*.py,tests/**/*.py
+---
+
+# Python
+
+- Type hints on public functions. Prefer `X | None`.
+- No `Any` to silence the type checker.
+- FastAPI: Pydantic bodies. SQLAlchemy 2.0 mapped columns.
+- Early returns for 401/403/404.

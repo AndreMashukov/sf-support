@@ -1,0 +1,11 @@
+---
+description: Hybrid RAG and LangGraph
+globs: app/rag/**/*.py
+---
+
+# RAG
+
+- Generate only for how-it-works. Bug/billing skip generate.
+- Hybrid: vector + FTS, RRF, top 6. Help articles only.
+- Weak retrieval: no-answer. Cite titles. No invented credits.
+- LangSmith project `study-forge-support`. Thinking off for structured JSON.

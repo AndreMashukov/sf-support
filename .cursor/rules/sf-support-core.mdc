@@ -1,0 +1,29 @@
+---
+description: StudyForge Support always-on conventions
+alwaysApply: true
+---
+
+# StudyForge Support
+
+Python FastAPI + Postgres (pgvector + FTS). Sibling of StudyForge. Spec: [docs/architecture.md](docs/architecture.md). Terms: [CONTEXT.md](CONTEXT.md). Handbook: [AGENTS.md](AGENTS.md) (read on demand).
+
+## Commands
+
+```bash
+docker compose up --build
+ruff check app
+ruff format app
+pytest
+```
+
+## Must follow
+
+- Firebase ID tokens. Staff = `role: admin`. Users only see their tickets.
+- How-it-works answers only from retrieved Help chunks. Cite titles. No invented credits.
+- Do not embed ticket text. Do not import `@study-forge`.
+- Never commit secrets. This app is not Firebase Hosting.
+- No MUI. v1 has no Postgres RLS (API enforces access).
+
+## Git
+
+`<type>/<description>/<initials>`
