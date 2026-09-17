@@ -6,10 +6,11 @@
   </head>
   <body>
     <h1>StudyForge Support</h1>
-    <p>Ask how the system works, or file a bug or billing ticket. Sign-in is not wired yet.</p>
+    <p>Ask how the system works, or file a bug or billing ticket. Sign in with your StudyForge account. Anonymous tickets are not allowed.</p>
     <p><a href="/staff">Staff queue</a></p>
     {% if studyforge_web_url %}
     <p><a href="{{ studyforge_web_url }}">Back to StudyForge</a></p>
     {% endif %}
+    {% include "partials/firebase_auth.html" %}
   </body>
 </html>

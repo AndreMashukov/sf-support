@@ -1,6 +1,6 @@
 # StudyForge Support
 
-Separate Python app for StudyForge tickets and hybrid RAG help. Spec: [docs/architecture.md](docs/architecture.md). Domain terms: [CONTEXT.md](CONTEXT.md). Agent conventions: [AGENTS.md](AGENTS.md).
+Separate Python app for StudyForge tickets and hybrid RAG help. Spec: [docs/architecture.md](docs/architecture.md). Remaining v1 work: [docs/implementation-plan.md](docs/implementation-plan.md). Domain terms: [CONTEXT.md](CONTEXT.md). Agent conventions: [AGENTS.md](AGENTS.md).
 
 Sibling of `../study-forge`. Do not import `@study-forge` packages.
 
@@ -38,4 +38,6 @@ ruff format --check app
 
 ## Auth
 
-Firebase ID tokens from the same project as StudyForge. Staff is custom claim `role: admin`. Verification is a 501 stub until wired.
+Firebase ID tokens from the same project as StudyForge. Sign in on `/` and `/staff` with email and password. The API expects `Authorization: Bearer <idToken>` and verifies it with Firebase Admin. Staff is custom claim `role: admin`. Anonymous accounts are rejected.
+
+Local with StudyForge Firebase emulators: set `FIREBASE_AUTH_EMULATOR_HOST` for the API and `FIREBASE_WEB_AUTH_EMULATOR_URL=http://127.0.0.1:9099` for the browser. Seed user `test@example.com` / `Test123456!` has `role: admin`.

@@ -1,0 +1,117 @@
+<script
+  id="firebase-config"
+  type="application/json"
+>{{ firebase_config | tojson }}</script>
+<script id="require-staff" type="application/json">{{ require_staff | tojson }}</script>
+
+<section id="auth-panel">
+  <form id="signin-form">
+    <p>
+      <label for="email">Email</label><br />
+      <input id="email" name="email" type="email" required autocomplete="username" />
+    </p>
+    <p>
+      <label for="password">Password</label><br />
+      <input
+        id="password"
+        name="password"
+        type="password"
+        required
+        autocomplete="current-password"
+      />
+    </p>
+    <p>
+      <button type="submit">Sign in</button>
+      <button type="button" id="signout" hidden>Sign out</button>
+    </p>
+  </form>
+  <p id="auth-status">Not signed in</p>
+  <p id="auth-error" hidden></p>
+</section>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+  import {
+    getAuth,
+    connectAuthEmulator,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+  } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+  const config = JSON.parse(document.getElementById("firebase-config").textContent);
+  const requireStaff = JSON.parse(document.getElementById("require-staff").textContent);
+  const statusEl = document.getElementById("auth-status");
+  const errorEl = document.getElementById("auth-error");
+  const formEl = document.getElementById("signin-form");
+  const signOutEl = document.getElementById("signout");
+
+  function showError(message) {
+    errorEl.hidden = false;
+    errorEl.textContent = message;
+  }
+
+  function clearError() {
+    errorEl.hidden = true;
+    errorEl.textContent = "";
+  }
+
+  const app = initializeApp({
+    apiKey: config.apiKey,
+    authDomain: config.authDomain,
+    projectId: config.projectId,
+  });
+  const auth = getAuth(app);
+  if (config.emulatorAuthUrl) {
+    connectAuthEmulator(auth, config.emulatorAuthUrl, { disableWarnings: true });
+  }
+
+  async function loadMe(user) {
+    const token = await user.getIdToken();
+    const response = await fetch("/api/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.detail || "Could not verify session");
+    }
+    if (requireStaff && !body.is_staff) {
+      throw new Error("Staff only. Sign in with an admin account (role: admin).");
+    }
+    return body;
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    clearError();
+    signOutEl.hidden = !user;
+    if (!user) {
+      statusEl.textContent = "Not signed in";
+      return;
+    }
+    try {
+      const me = await loadMe(user);
+      statusEl.textContent =
+        "Signed in as " + me.email + (me.is_staff ? " (staff)" : "");
+    } catch (err) {
+      statusEl.textContent = "Signed in, but this page rejected the session";
+      showError(err instanceof Error ? err.message : "Could not verify session");
+    }
+  });
+
+  formEl.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearError();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Sign-in failed");
+    }
+  });
+
+  signOutEl.addEventListener("click", async () => {
+    clearError();
+    await signOut(auth);
+  });
+</script>

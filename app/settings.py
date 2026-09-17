@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://support:support@127.0.0.1:5433/support"
     firebase_project_id: str = ""
     firebase_web_api_key: str = ""
+    firebase_auth_domain: str = ""
+    # Admin SDK (empty means production Auth). Example: 127.0.0.1:9099
+    firebase_auth_emulator_host: str = ""
+    # Browser JS (empty means production Auth). Example: http://127.0.0.1:9099
+    firebase_web_auth_emulator_url: str = ""
     openrouter_api_key: str = ""
     openrouter_embedding_model: str = "intfloat/multilingual-e5-large"
     together_ai_api_key: str = ""

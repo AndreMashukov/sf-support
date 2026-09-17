@@ -15,6 +15,22 @@ app = FastAPI(title="StudyForge Support", version="0.1.0")
 app.include_router(api_router)
 
 
+def page_context(*, require_staff: bool) -> dict:
+    auth_domain = settings.firebase_auth_domain
+    if not auth_domain and settings.firebase_project_id:
+        auth_domain = f"{settings.firebase_project_id}.firebaseapp.com"
+    return {
+        "studyforge_web_url": settings.studyforge_web_url,
+        "require_staff": require_staff,
+        "firebase_config": {
+            "apiKey": settings.firebase_web_api_key,
+            "authDomain": auth_domain,
+            "projectId": settings.firebase_project_id,
+            "emulatorAuthUrl": settings.firebase_web_auth_emulator_url or None,
+        },
+    }
+
+
 @app.on_event("startup")
 def startup() -> None:
     try:
@@ -34,7 +50,7 @@ def user_home(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "user_home.html",
-        {"studyforge_web_url": settings.studyforge_web_url},
+        page_context(require_staff=False),
     )
 
 
@@ -43,5 +59,5 @@ def staff_home(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "staff_home.html",
-        {"studyforge_web_url": settings.studyforge_web_url},
+        page_context(require_staff=True),
     )

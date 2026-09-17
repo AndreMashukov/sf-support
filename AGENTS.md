@@ -45,6 +45,7 @@ Branch: `<type>/<description>/<initials>` (feat, fix, docs, chore, refactor, tes
 | Topic | Path |
 | --- | --- |
 | Architecture | `docs/architecture.md` |
+| Remaining v1 work | `docs/implementation-plan.md` |
 | Glossary | `CONTEXT.md` |
 | Claude setup | `.claude/SETUP.md` |
 | Cursor rules | `.cursor/rules/README.md` |

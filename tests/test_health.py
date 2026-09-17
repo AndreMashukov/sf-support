@@ -19,3 +19,12 @@ def test_user_home_links_back_to_studyforge(monkeypatch) -> None:
     assert "StudyForge Support" in response.text
     assert "Back to StudyForge" in response.text
     assert 'href="http://localhost:4200"' in response.text
+    assert "Sign in" in response.text
+    assert "Anonymous tickets are not allowed" in response.text
+
+
+def test_staff_home_has_signin() -> None:
+    response = client.get("/staff")
+    assert response.status_code == 200
+    assert "Sign in" in response.text
+    assert "require-staff" in response.text

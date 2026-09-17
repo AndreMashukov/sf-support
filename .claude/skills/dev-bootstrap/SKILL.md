@@ -9,6 +9,6 @@ description: Bring up local Support stack — env file, Docker Compose Postgres 
 2. If `.env` is missing, copy `.env.example` to `.env` (user fills secrets).
 3. `docker compose up --build`
 4. Check `http://127.0.0.1:8000/health`
-5. Do not start StudyForge Firebase emulators unless the user is wiring Auth verify.
+5. For sign-in, run StudyForge Firebase emulators and set `FIREBASE_AUTH_EMULATOR_HOST` plus `FIREBASE_WEB_AUTH_EMULATOR_URL`.
 
 Report the health result. Do not claim the RAG graph works until embeddings and hybrid search are implemented.
