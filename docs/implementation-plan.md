@@ -12,6 +12,7 @@ The shell is in place: FastAPI routes, SQLAlchemy models, Docker Compose, seed m
 - StudyForge web **Help** link and admin **Support** feature flag (lives in the StudyForge repo)
 - `STUDYFORGE_WEB_URL` back-link on support pages
 - Firebase ID token verify, `Principal` mapping, Jinja email sign-in, no anonymous tickets
+- Postgres Help index: pgvector + `tsvector`, seed ingest, chunk/embed/reindex
 
 ## 1. Firebase sign-in
 
@@ -19,16 +20,7 @@ Done. `GET /api/me` and staff routes use a verified Bearer token. `/` and `/staf
 
 ## 2. Real Postgres use
 
-Tables exist as SQLAlchemy models. They are not a working index yet.
-
-- Enable pgvector and `tsvector` on **Help chunks**
-- Seed ingest: load `seed/*.md` as published **Help articles** (`source: seed`)
-- Chunk markdown (start ~800 tokens, overlap ~120 unless eval says otherwise)
-- Embed with OpenRouter `intfloat/multilingual-e5-large`
-- Write `tsv` from the same chunk text (plus title)
-- Reindex a published article in one transaction: delete old chunks, insert new ones
-
-Do not embed raw ticket bodies or billing amounts.
+Done. Seed markdown is ingested as published Help articles. Chunks store embeddings and `tsv`. `python -m app.ingest` or Compose `SEED_ON_STARTUP` reindexes when the article body is new. Hybrid search is still a stub (section 3).
 
 ## 3. Hybrid search and the how-it-works graph
 
@@ -89,4 +81,4 @@ Keep FastAPI + Jinja. Do not move this into NX `web` / `admin`.
 
 ## Suggested first slice
 
-Seed ingest. That unblocks hybrid search, the graph, and tickets.
+Hybrid search (vector + FTS + RRF) so the how-it-works graph has chunks.

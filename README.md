@@ -34,7 +34,21 @@ ruff format --check app
 
 ## Seed
 
-`seed/workspace-agent-knowledge-base.md` is a copy of StudyForge platform policy. `seed/faq.md` is a small support FAQ. Ingest/reindex is not wired yet.
+`seed/workspace-agent-knowledge-base.md` is a copy of StudyForge platform policy. `seed/faq.md` is a small support FAQ.
+
+Ingest loads those files as published Help articles (`source: seed`), chunks at 800/120 characters, embeds with OpenRouter e5, and writes `tsvector` from title plus chunk text. Reindex of one article is delete-then-insert in the same transaction.
+
+```bash
+# Compose API runs this on startup when OPENROUTER_API_KEY is set
+docker compose up --build
+
+# Host uvicorn (Postgres on :5433)
+python -m app.ingest
+```
+
+Staff can reindex one article with `POST /api/articles/{id}/reindex`. Hybrid search is not wired yet.
+
+If you already had a local volume from before Help-chunk columns existed: `docker compose down -v` then bring the stack up again.
 
 ## Auth
 

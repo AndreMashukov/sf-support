@@ -1,12 +1,15 @@
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.auth import PrincipalDep, StaffDep
-from app.models import TicketCategory
+from app.db import get_db
+from app.models import Article, TicketCategory
 from app.rag.graph import run_how_it_works
+from app.rag.index import reindex_article
 
 router = APIRouter(prefix="/api")
 
@@ -62,9 +65,7 @@ def get_ticket(ticket_id: UUID, _principal: PrincipalDep) -> dict:
 
 
 @router.post("/tickets/{ticket_id}/messages")
-def post_message(
-    ticket_id: UUID, _body: MessageBody, _principal: PrincipalDep
-) -> dict:
+def post_message(ticket_id: UUID, _body: MessageBody, _principal: PrincipalDep) -> dict:
     return {"id": str(ticket_id), "detail": "Message post not implemented yet."}
 
 
@@ -76,3 +77,21 @@ def close_ticket(ticket_id: UUID, principal: StaffDep) -> dict:
 @router.get("/articles")
 def list_articles(_principal: StaffDep) -> dict:
     return {"items": []}
+
+
+@router.post("/articles/{article_id}/reindex")
+def reindex_published_article(
+    article_id: UUID,
+    _principal: StaffDep,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    article = db.get(Article, article_id)
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    try:
+        chunk_count = reindex_article(db, article)
+        db.commit()
+    except RuntimeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"id": str(article.id), "chunks": chunk_count}

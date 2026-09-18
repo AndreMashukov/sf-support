@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     firebase_web_auth_emulator_url: str = ""
     openrouter_api_key: str = ""
     openrouter_embedding_model: str = "intfloat/multilingual-e5-large"
+    openrouter_embeddings_url: str = "https://openrouter.ai/api/v1/embeddings"
+    seed_on_startup: bool = False
     together_ai_api_key: str = ""
     together_chat_model: str = "zai-org/GLM-5.2"
     langsmith_project: str = "study-forge-support"

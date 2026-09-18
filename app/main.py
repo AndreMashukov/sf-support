@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -6,8 +7,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import OperationalError
 
 from app.api.routes import router as api_router
-from app.db import Base, engine
+from app.db import ensure_schema
+from app.ingest import run_seed_ingest
 from app.settings import settings
+
+logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "ui" / "templates"))
 
@@ -34,10 +38,16 @@ def page_context(*, require_staff: bool) -> dict:
 @app.on_event("startup")
 def startup() -> None:
     try:
-        Base.metadata.create_all(bind=engine)
+        ensure_schema()
     except OperationalError:
         # Health and static pages work without Postgres (unit tests, docs).
-        pass
+        return
+    if not settings.seed_on_startup:
+        return
+    try:
+        run_seed_ingest()
+    except Exception:
+        logger.exception("Seed ingest failed; API will still serve")
 
 
 @app.get("/health")

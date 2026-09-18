@@ -23,6 +23,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
+      SEED_ON_STARTUP: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

@@ -2,35 +2,46 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from pgvector.sqlalchemy import VECTOR
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db import Base
+from app.db import EMBEDDING_DIMENSIONS, Base
 
 
-class ArticleStatus(str, enum.Enum):
+class ArticleStatus(enum.StrEnum):
     draft = "draft"
     published = "published"
 
 
-class ArticleSource(str, enum.Enum):
+class ArticleSource(enum.StrEnum):
     seed = "seed"
     staff = "staff"
 
 
-class TicketCategory(str, enum.Enum):
+class TicketCategory(enum.StrEnum):
     how_it_works = "how_it_works"
     bug = "bug"
     billing = "billing"
 
 
-class TicketStatus(str, enum.Enum):
+class TicketStatus(enum.StrEnum):
     open = "open"
     closed = "closed"
 
 
-class AuthorType(str, enum.Enum):
+class AuthorType(enum.StrEnum):
     user = "user"
     staff = "staff"
     system = "system"
@@ -46,7 +57,9 @@ class Article(Base):
     body_markdown: Mapped[str] = mapped_column(Text)
     status: Mapped[ArticleStatus] = mapped_column(Enum(ArticleStatus))
     source: Mapped[ArticleSource] = mapped_column(Enum(ArticleSource))
-    seed_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    seed_path: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, unique=True
+    )
     updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -65,8 +78,21 @@ class Chunk(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer)
     text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(EMBEDDING_DIMENSIONS))
+    tsv: Mapped[str] = mapped_column(TSVECTOR)
     content_hash: Mapped[str] = mapped_column(String(64))
     article: Mapped[Article] = relationship(back_populates="chunks")
+
+    __table_args__ = (
+        UniqueConstraint("article_id", "chunk_index", name="uq_chunks_article_index"),
+        Index(
+            "ix_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index("ix_chunks_tsv_gin", "tsv", postgresql_using="gin"),
+    )
 
 
 class Ticket(Base):

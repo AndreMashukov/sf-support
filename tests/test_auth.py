@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.auth import principal_from_claims
+from app.db import get_db
 from app.main import app
 
 client = TestClient(app)
@@ -89,3 +90,33 @@ def test_principal_from_admin_claims() -> None:
         }
     )
     assert principal.is_staff is True
+
+
+def test_reindex_unknown_article_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.auth.verify_id_token",
+        lambda _token: {
+            "uid": "admin-1",
+            "email": "test@example.com",
+            "role": "admin",
+            "firebase": {"sign_in_provider": "password"},
+        },
+    )
+
+    class _Db:
+        def get(self, _model, _id):
+            return None
+
+    def _override_db():
+        yield _Db()
+
+    app.dependency_overrides[get_db] = _override_db
+    try:
+        response = client.post(
+            "/api/articles/11111111-1111-1111-1111-111111111111/reindex",
+            headers={"Authorization": "Bearer fake-id-token"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Article not found"
