@@ -25,8 +25,6 @@ def test_command_submitted_payload() -> None:
 def test_handle_ask_uses_graph(monkeypatch) -> None:
     from app.support_bus import worker
 
-    stored: list[tuple] = []
-
     monkeypatch.setattr(
         worker,
         "run_how_it_works",
@@ -39,10 +37,8 @@ def test_handle_ask_uses_graph(monkeypatch) -> None:
         },
     )
     monkeypatch.setattr(worker, "persist_ask_run", lambda *args: None)
-    monkeypatch.setattr(worker, "set_doc", lambda *args: stored.append(args))
-    monkeypatch.setattr(worker.settings, "local_cdc_shortcut", False)
 
-    worker.handle_command(
+    result = worker.handle_command(
         {
             "type": "AskHowItWorks",
             "command_id": "cmd-1",
@@ -50,6 +46,7 @@ def test_handle_ask_uses_graph(monkeypatch) -> None:
             "payload": {"query": "credits"},
         }
     )
-    assert stored
-    assert stored[0][1] == "cmd-1"
-    assert stored[0][2]["enough_context"] is False
+    assert result is not None
+    assert result["event_type"] == "ask.completed"
+    assert result["command_id"] == "cmd-1"
+    assert result["enough_context"] is False

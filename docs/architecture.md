@@ -69,7 +69,7 @@ flowchart LR
   graph --> ls
 ```
 
-The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. sfs writes Firestore **SoT** rows so Eventarc can publish. A consumer writes the **lean** read model. Local emulator may materialize lean docs without Eventarc.
+The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. Eventarc POSTs Firestore writes to sfs `/__eventarc/publish`, which is the only Pub/Sub publisher. `/pubsub/push` runs commands and writes lean docs. Local emulator may poll with `LOCAL_CDC_SHORTCUT`.
 
 ## User flows
 

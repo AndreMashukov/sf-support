@@ -6,7 +6,14 @@ Copied from `example/label-hold` (Eventarc plus Pub/Sub). Datastream is not used
 cd infra/envs/dev
 cp terraform.tfvars.example terraform.tfvars
 terraform init
-terraform plan
+terraform apply
 ```
 
-Local development does not apply this. Use Firebase emulators and `LOCAL_CDC_SHORTCUT=true` on sfs so `supportCommands` are processed without Eventarc.
+This creates:
+
+- Pub/Sub `support-events` plus DLQ
+- Eventarc Firestore triggers on `supportCommands` (created), `supportAskSot` and `supportTicketSot` (written)
+- Destination: Cloud Run `study-forge-support` path `/__eventarc/publish`
+- Push subscription to `/pubsub/push`
+
+Local emulator still uses `LOCAL_CDC_SHORTCUT=true` (poller). Production Cloud Run should use `SUPPORT_EVENTS_BACKEND=pubsub` and `LOCAL_CDC_SHORTCUT=false`.

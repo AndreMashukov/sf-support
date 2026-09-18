@@ -1,2 +1,5 @@
-project_id = "your-gcp-project-id"
-region     = "asia-southeast1"
+project_id         = "study-forge-202604"
+project_number     = "853327102927"
+region             = "asia-east1"
+cloud_run_service  = "study-forge-support"
+cloud_run_url      = "https://study-forge-support-7ruwut7k4a-de.a.run.app"

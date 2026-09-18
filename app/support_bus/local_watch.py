@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 
+from app.support_bus.bus import publish_event
 from app.support_bus.collections import COMMANDS
 from app.support_bus.events import command_submitted_payload
 from app.support_bus.firestore_io import firestore_client
@@ -38,8 +39,9 @@ def _watch() -> None:
                     seen.add(snap.id)
                     continue
                 event = command_submitted_payload(snap.id, doc)
-                handle_command(event)
-                snap.reference.update({"processed": True})
+                domain = handle_command(event)
+                if domain is not None:
+                    publish_event(domain)
                 seen.add(snap.id)
         except Exception:
             logger.exception("Local command poll failed")

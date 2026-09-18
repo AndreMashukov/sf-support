@@ -95,6 +95,10 @@ output "dlq_topic_id" {
   value = google_pubsub_topic.events_dlq.id
 }
 
+output "dlq_topic_name" {
+  value = google_pubsub_topic.events_dlq.name
+}
+
 output "publisher_service_account_email" {
   value = google_service_account.publisher.email
 }

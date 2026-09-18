@@ -11,6 +11,7 @@ from app.db import ensure_schema
 from app.ingest import run_seed_ingest
 from app.settings import settings
 from app.support_bus.cdc import router as cdc_router
+from app.support_bus.consumer import router as consumer_router
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "ui" / "templa
 app = FastAPI(title="StudyForge Support", version="0.1.0")
 app.include_router(api_router)
 app.include_router(cdc_router)
+app.include_router(consumer_router)
 
 
 def page_context(*, require_staff: bool) -> dict:
