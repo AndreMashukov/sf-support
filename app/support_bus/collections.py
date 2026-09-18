@@ -1,0 +1,6 @@
+COMMANDS = "supportCommands"
+ASK_SOT = "supportAskSot"
+TICKET_SOT = "supportTicketSot"
+TICKETS_LEAN = "supportTickets"
+ASK_RESULTS_LEAN = "supportAskResults"
+MESSAGES = "messages"

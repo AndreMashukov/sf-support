@@ -54,3 +54,6 @@ def ensure_schema() -> None:
                 "ON articles (seed_path) WHERE seed_path IS NOT NULL"
             )
         )
+        conn.execute(
+            text("ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS command_id varchar(64)")
+        )

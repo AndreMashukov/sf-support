@@ -46,7 +46,7 @@ docker compose up --build
 python -m app.ingest
 ```
 
-Staff can reindex one article with `POST /api/articles/{id}/reindex`. Hybrid search is not wired yet.
+Staff can reindex one article with `POST /api/articles/{id}/reindex`. User tickets are filed on StudyForge `/support`. Local CDC: set `LOCAL_CDC_SHORTCUT=true` and `FIRESTORE_EMULATOR_HOST`. Hybrid search is not wired yet.
 
 If you already had a local volume from before Help-chunk columns existed: `docker compose down -v` then bring the stack up again.
 

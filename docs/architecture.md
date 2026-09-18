@@ -13,9 +13,10 @@ StudyForge today has no ticketing. The web app only tells users to contact suppo
 | How it works | Hybrid RAG first. Ticket only if the user clicks **Still need help**. |
 | Bug / billing | Always create a ticket. RAG may attach snippets for staff. No auto-answer gate. |
 | Index | Seed curated markdown (including `docs/workspace-agent-knowledge-base.md` and a small FAQ) plus staff-edited articles. Do not embed raw tickets. |
-| Store | One PostgreSQL: tickets, articles, chunks, **pgvector**, **tsvector**. Hybrid = vector + full-text, fused with RRF. |
+| Store | Postgres: Help chunks (**pgvector**, **tsvector**) and a processing copy of tickets. Firestore SoT for commands/tickets that Eventarc watches. Lean Firestore (`supportTickets`, `supportAskResults`) is the chat read model. |
 | Repo | Sibling repo. No Yarn/NX. No `@study-forge` Python imports. Join key is Firebase UID. |
-| UI | FastAPI serves user and staff UIs. StudyForge web only links in later. |
+| UI | StudyForge web (`/support`) is the user surface. sfs FastAPI is staff plus Help articles. |
+| Bus | Label-hold CDC: Firestore write, Eventarc, sfs `/__eventarc/publish` (only Pub/Sub publisher), OIDC push consumer. Datastream is out. |
 | Models | OpenRouter embeddings (`intfloat/multilingual-e5-large` or the same route StudyForge uses). Together/MiniMax for generation. OpenAI-compatible LangChain clients. |
 | Category | User picks: **how_it_works**, **bug**, **billing**. |
 | Lifecycle | **open** / **closed**. In-app thread. No email. |
@@ -39,7 +40,8 @@ StudyForge today has no ticketing. The web app only tells users to contact suppo
 - Email, SLA, assignments, CSAT, waiting-on-user status.
 - Indexing past tickets or PII for search.
 - File/screenshot storage.
-- In-app Support page inside NX `web` / `admin`.
+- Staff queue inside NX admin.
+- Datastream / Cloud SQL CDC.
 - Auto-close from the model.
 - Kubernetes.
 
@@ -67,7 +69,7 @@ flowchart LR
   graph --> ls
 ```
 
-The support app does **not** call StudyForge Firebase Functions for tickets. It does not write Firestore ticket collections.
+The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. sfs writes Firestore **SoT** rows so Eventarc can publish. A consumer writes the **lean** read model. Local emulator may materialize lean docs without Eventarc.
 
 ## User flows
 

@@ -10,6 +10,7 @@ from app.api.routes import router as api_router
 from app.db import ensure_schema
 from app.ingest import run_seed_ingest
 from app.settings import settings
+from app.support_bus.cdc import router as cdc_router
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "ui" / "templa
 
 app = FastAPI(title="StudyForge Support", version="0.1.0")
 app.include_router(api_router)
+app.include_router(cdc_router)
 
 
 def page_context(*, require_staff: bool) -> dict:
@@ -42,6 +44,13 @@ def startup() -> None:
     except OperationalError:
         # Health and static pages work without Postgres (unit tests, docs).
         return
+    if settings.local_cdc_shortcut:
+        try:
+            from app.support_bus.local_watch import start_local_command_watch
+
+            start_local_command_watch()
+        except Exception:
+            logger.exception("Local CDC shortcut failed to start")
     if not settings.seed_on_startup:
         return
     try:

@@ -13,6 +13,7 @@ The shell is in place: FastAPI routes, SQLAlchemy models, Docker Compose, seed m
 - `STUDYFORGE_WEB_URL` back-link on support pages
 - Firebase ID token verify, `Principal` mapping, Jinja email sign-in, no anonymous tickets
 - Postgres Help index: pgvector + `tsvector`, seed ingest, chunk/embed/reindex
+- User Support moves to StudyForge `/support`. Eventarc CDC copies label-hold (see architecture). Datastream is deferred.
 
 ## 1. Firebase sign-in
 
@@ -49,14 +50,12 @@ Create, list, get, message, and close are stubs.
 
 ## 5. User UI, then staff UI
 
-Keep FastAPI + Jinja. Do not move this into NX `web` / `admin`.
+**User** lives in NX web (`/support`). Do not add more sfs user ticket Jinja.
 
-**User**
-
-- Sign in, category, question
+- Sign in (StudyForge), category, question
 - How-it-works result: answer + citations, or no-answer
 - **That helped** (no ticket) and **Still need help**
-- My tickets and ticket thread
+- My tickets and ticket thread (lean Firestore)
 
 **Staff** (`role: admin`)
 
@@ -75,7 +74,7 @@ Keep FastAPI + Jinja. Do not move this into NX `web` / `admin`.
 - Email, SLA, assignments, CSAT, waiting-on-user
 - Indexing past tickets or PII for search
 - File or screenshot storage
-- In-app Support page inside NX
+- Datastream
 - Passing ID tokens in query strings
 - Kubernetes
 

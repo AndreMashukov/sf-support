@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     firebase_auth_emulator_host: str = ""
     # Browser JS (empty means production Auth). Example: http://127.0.0.1:9099
     firebase_web_auth_emulator_url: str = ""
+    firestore_emulator_host: str = ""
+    # Local only: watch supportCommands and write lean docs without Eventarc.
+    local_cdc_shortcut: bool = False
+    support_events_topic: str = "support-events"
     openrouter_api_key: str = ""
     openrouter_embedding_model: str = "intfloat/multilingual-e5-large"
     openrouter_embeddings_url: str = "https://openrouter.ai/api/v1/embeddings"

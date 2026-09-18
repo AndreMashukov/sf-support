@@ -36,6 +36,18 @@ _Avoid_: email thread, chat
 Published markdown used for hybrid search. Seeded from curated files or written by staff. Distinct from a user's StudyForge **Document**.
 _Avoid_: knowledge base (alone), RAG doc, platform agent knowledge (that term belongs to StudyForge)
 
+**Support command**:
+A create-only Firestore inbox doc (`supportCommands/{id}`) from the StudyForge web app. Eventarc turns it into a bus event. The client does not write tickets.
+_Avoid_: ticket create API, webhook from web
+
+**Support SoT row**:
+Firestore document Eventarc watches after sfs processes a command (ticket or ask). Only sfs writes it.
+_Avoid_: lean ticket, master ticket in Postgres alone
+
+**Lean ticket**:
+Read-model docs (`supportTickets`, `supportAskResults`) the chat window listens to. Written by the CDC consumer (or a local emulator shortcut).
+_Avoid_: system of record
+
 **Help chunk**:
 Embedded slice of a published **Help article**, plus a `tsvector` for keyword search.
 _Avoid_: RAG chunk (alone)
