@@ -116,6 +116,7 @@ class Ticket(Base):
         DateTime(timezone=True), nullable=True
     )
     closed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    write_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     messages: Mapped[list["Message"]] = relationship(back_populates="ticket")
 
 

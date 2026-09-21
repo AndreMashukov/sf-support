@@ -1,4 +1,4 @@
-"""Emulator shortcut: poll supportCommands and run the worker."""
+"""Emulator shortcut: poll supportCommands and ticket write_id, skip Datastream."""
 
 from __future__ import annotations
 
@@ -6,10 +6,15 @@ import logging
 import threading
 import time
 
+from sqlalchemy.exc import OperationalError
+
+from app.db import SessionLocal
+from app.models import Ticket
 from app.support_bus.bus import publish_event
 from app.support_bus.collections import COMMANDS
 from app.support_bus.events import command_submitted_payload
 from app.support_bus.firestore_io import firestore_client
+from app.support_bus.ticket_publish import publish_ticket_from_postgres
 from app.support_bus.worker import handle_command
 
 logger = logging.getLogger(__name__)
@@ -22,12 +27,18 @@ def start_local_command_watch() -> None:
     if _started:
         return
     _started = True
-    thread = threading.Thread(target=_watch, name="support-command-watch", daemon=True)
-    thread.start()
-    logger.info("Local CDC shortcut polling %s", COMMANDS)
+    threading.Thread(
+        target=_watch_commands, name="support-command-watch", daemon=True
+    ).start()
+    threading.Thread(
+        target=_watch_tickets, name="support-ticket-cdc", daemon=True
+    ).start()
+    logger.info(
+        "Local CDC shortcut polling %s and tickets.write_id", COMMANDS
+    )
 
 
-def _watch() -> None:
+def _watch_commands() -> None:
     seen: set[str] = set()
     while True:
         try:
@@ -45,6 +56,31 @@ def _watch() -> None:
                 seen.add(snap.id)
         except Exception:
             logger.exception("Local command poll failed")
+        time.sleep(1)
+
+
+def _watch_tickets() -> None:
+    seen: dict[str, str] = {}
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                rows = db.query(Ticket.id, Ticket.write_id).all()
+            finally:
+                db.close()
+            for ticket_id, write_id in rows:
+                tid = str(ticket_id)
+                wid = str(write_id or "")
+                if not wid:
+                    continue
+                if seen.get(tid) == wid:
+                    continue
+                publish_ticket_from_postgres(tid)
+                seen[tid] = wid
+        except OperationalError:
+            pass
+        except Exception:
+            logger.exception("Local ticket poll failed")
         time.sleep(1)
 
 

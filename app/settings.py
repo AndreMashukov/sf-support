@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     support_events_topic: str = "support-events"
     # memory (tests/CLI) or pubsub (Cloud Run)
     support_events_backend: str = "memory"
+    # Datastream CDC files land here; Eventarc passes bucket/name to /__eventarc/publish.
+    support_cdc_gcs_bucket: str = ""
     gcp_project_id: str = ""
     openrouter_api_key: str = ""
     openrouter_embedding_model: str = "intfloat/multilingual-e5-large"

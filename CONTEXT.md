@@ -37,16 +37,20 @@ Published markdown used for hybrid search. Seeded from curated files or written 
 _Avoid_: knowledge base (alone), RAG doc, platform agent knowledge (that term belongs to StudyForge)
 
 **Support command**:
-A create-only Firestore inbox doc (`supportCommands/{id}`) from the StudyForge web app. Eventarc turns it into a bus event. The client does not write tickets.
+A create-only Firestore inbox doc (`supportCommands/{id}`) from the StudyForge web app. `supportCommandCdc` turns it into `command.submitted` on the bus. The client does not write tickets.
 _Avoid_: ticket create API, webhook from web
 
-**Support SoT row**:
-Firestore document Eventarc watches after sfs processes a command (ticket or ask). Only sfs writes it.
-_Avoid_: lean ticket, master ticket in Postgres alone
+**Ticket SoT row**:
+Postgres `tickets` and `messages` in Cloud SQL (local Compose for dev). The command worker persists only. Datastream CDC publishes `ticket.updated` after row changes.
+_Avoid_: lean ticket, Firestore master ticket
 
 **Lean ticket**:
-Read-model docs (`supportTickets`, `supportAskResults`) the chat window listens to. Written by the CDC consumer (or a local emulator shortcut).
+Read-model docs (`supportTickets`, `supportAskResults`) the chat window listens to. Written by StudyForge Pub/Sub functions (`supportTicketLeanProject`, `supportLeanProject`) or a local `write_id` poller.
 _Avoid_: system of record
+
+**Ticket CDC trigger leg**:
+Datastream to GCS JSON, Eventarc to sfs `/__eventarc/publish`, re-read Postgres, publish `ticket.updated`. Only path for ticket domain events in production.
+_Avoid_: worker publish, Firestore SoT for tickets
 
 **Help chunk**:
 Embedded slice of a published **Help article**, plus a `tsvector` for keyword search.

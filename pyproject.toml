@@ -20,6 +20,7 @@ dependencies = [
   "langgraph>=0.2.0",
   "langsmith>=0.2.0",
   "google-cloud-pubsub>=2.27.0",
+  "google-cloud-storage>=2.19.0",
 ]
 
 [project.optional-dependencies]
