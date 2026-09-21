@@ -41,6 +41,11 @@ variable "deletion_protection" {
   default = false
 }
 
+data "google_datastream_static_ips" "region" {
+  project  = var.project_id
+  location = var.region
+}
+
 resource "random_password" "postgres" {
   length  = 24
   special = false
@@ -71,6 +76,14 @@ resource "google_sql_database_instance" "support" {
 
     ip_configuration {
       ipv4_enabled = true
+
+      dynamic "authorized_networks" {
+        for_each = data.google_datastream_static_ips.region.static_ips
+        content {
+          name  = "datastream-${replace(authorized_networks.value, ".", "-")}"
+          value = authorized_networks.value
+        }
+      }
     }
 
     backup_configuration {

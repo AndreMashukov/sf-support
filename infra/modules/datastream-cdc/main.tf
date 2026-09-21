@@ -62,6 +62,12 @@ variable "gcs_bucket_name" {
   default = ""
 }
 
+variable "stream_desired_state" {
+  type        = string
+  default     = "NOT_STARTED"
+  description = "NOT_STARTED until publication and slot exist, then RUNNING."
+}
+
 locals {
   bucket_name = var.gcs_bucket_name != "" ? var.gcs_bucket_name : "${var.project_id}-sf-support-cdc"
 }
@@ -162,7 +168,7 @@ resource "google_datastream_stream" "support_tickets" {
   location      = var.region
   stream_id     = "sf-support-tickets"
   display_name  = "sf-support tickets and messages"
-  desired_state = "RUNNING"
+  desired_state = var.stream_desired_state
 
   source_config {
     source_connection_profile = google_datastream_connection_profile.source.id
@@ -189,7 +195,10 @@ resource "google_datastream_stream" "support_tickets" {
     destination_connection_profile = google_datastream_connection_profile.destination.id
 
     gcs_destination_config {
-      file_format = "JSON"
+      json_file_format {
+        schema_file_format = "NO_SCHEMA_FILE"
+        compression        = "NO_COMPRESSION"
+      }
     }
   }
 
@@ -210,7 +219,27 @@ output "datastream_stream_id" {
 
 output "bootstrap_sql" {
   value = <<-SQL
+    GRANT USAGE ON SCHEMA public TO ${var.postgres_username};
     GRANT SELECT ON tickets, messages TO ${var.postgres_username};
-    CREATE PUBLICATION ${var.publication_name} FOR TABLE tickets, messages;
+    ALTER USER ${var.postgres_username} WITH REPLICATION;
+    DO $bootstrap$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_publication WHERE pubname = '${var.publication_name}'
+      ) THEN
+        CREATE PUBLICATION ${var.publication_name} FOR TABLE tickets, messages;
+      END IF;
+    END
+    $bootstrap$;
+    -- Run the slot statement as ${var.postgres_username} so that user owns the slot.
+    DO $bootstrap$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_replication_slots WHERE slot_name = '${var.replication_slot}'
+      ) THEN
+        PERFORM pg_create_logical_replication_slot('${var.replication_slot}', 'pgoutput');
+      END IF;
+    END
+    $bootstrap$;
   SQL
 }

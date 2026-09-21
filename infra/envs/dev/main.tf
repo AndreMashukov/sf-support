@@ -36,6 +36,12 @@ variable "cloud_run_url" {
   type = string
 }
 
+variable "datastream_stream_desired_state" {
+  type        = string
+  default     = "NOT_STARTED"
+  description = "NOT_STARTED on first apply. Set RUNNING after bootstrap SQL."
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -70,16 +76,17 @@ module "cloud_sql" {
 }
 
 module "datastream_cdc" {
-  source              = "../../modules/datastream-cdc"
-  project_id          = var.project_id
-  region              = var.region
-  cloud_run_service   = var.cloud_run_service
-  cloud_run_url       = var.cloud_run_url
-  postgres_host       = module.cloud_sql.public_ip_address
-  postgres_database   = module.cloud_sql.database_name
-  postgres_username   = module.cloud_sql.datastream_user
-  postgres_password   = module.cloud_sql.datastream_password
-  depends_on          = [module.cloud_sql]
+  source               = "../../modules/datastream-cdc"
+  project_id           = var.project_id
+  region               = var.region
+  cloud_run_service    = var.cloud_run_service
+  cloud_run_url        = var.cloud_run_url
+  postgres_host        = module.cloud_sql.public_ip_address
+  postgres_database    = module.cloud_sql.database_name
+  postgres_username    = module.cloud_sql.datastream_user
+  postgres_password    = module.cloud_sql.datastream_password
+  stream_desired_state = var.datastream_stream_desired_state
+  depends_on           = [module.cloud_sql]
 }
 
 module "cdc" {
