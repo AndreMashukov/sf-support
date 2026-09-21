@@ -23,7 +23,7 @@ variable "region" {
 
 variable "instance_name" {
   type    = string
-  default = "sf-support-pg"
+  default = "study-forge-support"
 }
 
 variable "database_name" {

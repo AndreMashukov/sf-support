@@ -42,6 +42,12 @@ variable "datastream_stream_desired_state" {
   description = "NOT_STARTED on first apply. Set RUNNING after bootstrap SQL."
 }
 
+variable "cloud_sql_instance_name" {
+  type        = string
+  default     = "study-forge-support"
+  description = "Existing Cloud SQL instance. Do not apply this module as a second instance."
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -69,10 +75,11 @@ module "event_hub" {
 }
 
 module "cloud_sql" {
-  source     = "../../modules/cloud-sql"
-  project_id = var.project_id
-  region     = var.region
-  depends_on = [google_project_service.required]
+  source        = "../../modules/cloud-sql"
+  project_id    = var.project_id
+  region        = var.region
+  instance_name = var.cloud_sql_instance_name
+  depends_on    = [google_project_service.required]
 }
 
 module "datastream_cdc" {
