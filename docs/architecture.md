@@ -16,7 +16,7 @@ StudyForge today has no ticketing. The web app only tells users to contact suppo
 | Store | Postgres: Help chunks (**pgvector**, **tsvector**) and a processing copy of tickets. Firestore SoT for commands/tickets that Eventarc watches. Lean Firestore (`supportTickets`, `supportAskResults`) is the chat read model. |
 | Repo | Sibling repo. No Yarn/NX. No `@study-forge` Python imports. Join key is Firebase UID. |
 | UI | StudyForge web (`/support`) is the user surface. sfs FastAPI is staff plus Help articles. |
-| Bus | Label-hold CDC: Firestore write, Eventarc, sfs `/__eventarc/publish` (only Pub/Sub publisher), OIDC push consumer. Datastream is out. |
+| Bus | Commands: Firestore `supportCommands`, StudyForge `supportCommandCdc`, Pub/Sub `support-events`, sfs `/pubsub/push`. Tickets: Postgres CDC via Datastream to GCS, Eventarc to sfs `/__eventarc/publish`, `ticket.updated`, StudyForge `supportTicketLeanProject`. Ask: in-process `ask.completed`, `supportLeanProject`. |
 | Models | OpenRouter embeddings (`intfloat/multilingual-e5-large` or the same route StudyForge uses). Together/MiniMax for generation. OpenAI-compatible LangChain clients. |
 | Category | User picks: **how_it_works**, **bug**, **billing**. |
 | Lifecycle | **open** / **closed**. In-app thread. No email. |
@@ -41,7 +41,6 @@ StudyForge today has no ticketing. The web app only tells users to contact suppo
 - Indexing past tickets or PII for search.
 - File/screenshot storage.
 - Staff queue inside NX admin.
-- Datastream / Cloud SQL CDC.
 - Auto-close from the model.
 - Kubernetes.
 
@@ -69,7 +68,7 @@ flowchart LR
   graph --> ls
 ```
 
-The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. Eventarc POSTs Firestore writes to sfs `/__eventarc/publish`, which is the only Pub/Sub publisher. `/pubsub/push` runs commands and writes lean docs. Local emulator may poll with `LOCAL_CDC_SHORTCUT`.
+The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. StudyForge `supportCommandCdc` publishes `command.submitted`. sfs `/pubsub/push` runs commands and persists Postgres. Ticket changes reach the bus through Datastream CDC (prod) or a local `write_id` poller. sfs `/__eventarc/publish` publishes `ticket.updated` from Postgres. StudyForge functions write lean Firestore. Local emulator may poll with `LOCAL_CDC_SHORTCUT`.
 
 ## User flows
 

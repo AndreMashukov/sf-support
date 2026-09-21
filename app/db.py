@@ -57,3 +57,6 @@ def ensure_schema() -> None:
         conn.execute(
             text("ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS command_id varchar(64)")
         )
+        conn.execute(
+            text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS write_id varchar(64)")
+        )
