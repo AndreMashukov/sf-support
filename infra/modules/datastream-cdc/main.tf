@@ -4,7 +4,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = ">= 7.0"
     }
   }
 }
@@ -45,6 +45,12 @@ variable "postgres_username" {
 variable "postgres_password" {
   type      = string
   sensitive = true
+}
+
+variable "postgres_ca_certificate" {
+  type        = string
+  sensitive   = true
+  description = "PEM Cloud SQL server CA. Required when Cloud SQL ssl_mode is ENCRYPTED_ONLY."
 }
 
 variable "publication_name" {
@@ -148,6 +154,11 @@ resource "google_datastream_connection_profile" "source" {
     username = var.postgres_username
     password = var.postgres_password
     database = var.postgres_database
+    ssl_config {
+      server_verification {
+        ca_certificate = var.postgres_ca_certificate
+      }
+    }
   }
 }
 

@@ -5,7 +5,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = ">= 7.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -76,17 +76,18 @@ module "cloud_sql" {
 }
 
 module "datastream_cdc" {
-  source               = "../../modules/datastream-cdc"
-  project_id           = var.project_id
-  region               = var.region
-  cloud_run_service    = var.cloud_run_service
-  cloud_run_url        = var.cloud_run_url
-  postgres_host        = module.cloud_sql.public_ip_address
-  postgres_database    = module.cloud_sql.database_name
-  postgres_username    = module.cloud_sql.datastream_user
-  postgres_password    = module.cloud_sql.datastream_password
-  stream_desired_state = var.datastream_stream_desired_state
-  depends_on           = [module.cloud_sql]
+  source                  = "../../modules/datastream-cdc"
+  project_id              = var.project_id
+  region                  = var.region
+  cloud_run_service       = var.cloud_run_service
+  cloud_run_url           = var.cloud_run_url
+  postgres_host           = module.cloud_sql.public_ip_address
+  postgres_database       = module.cloud_sql.database_name
+  postgres_username       = module.cloud_sql.datastream_user
+  postgres_password       = module.cloud_sql.datastream_password
+  postgres_ca_certificate = module.cloud_sql.server_ca_cert
+  stream_desired_state    = var.datastream_stream_desired_state
+  depends_on              = [module.cloud_sql]
 }
 
 module "cdc" {

@@ -76,6 +76,7 @@ resource "google_sql_database_instance" "support" {
 
     ip_configuration {
       ipv4_enabled = true
+      ssl_mode     = "ENCRYPTED_ONLY"
 
       dynamic "authorized_networks" {
         for_each = data.google_datastream_static_ips.region.static_ips
@@ -142,6 +143,11 @@ output "datastream_password" {
   sensitive = true
 }
 
+output "server_ca_cert" {
+  value     = google_sql_database_instance.support.server_ca_cert[0].cert
+  sensitive = true
+}
+
 output "database_url_hint" {
-  value = "postgresql+psycopg://${google_sql_user.app.name}:<password>@${google_sql_database_instance.support.public_ip_address}:5432/${google_sql_database.support.name}"
+  value = "postgresql+psycopg://${google_sql_user.app.name}:<password>@${google_sql_database_instance.support.public_ip_address}:5432/${google_sql_database.support.name}?sslmode=require"
 }
