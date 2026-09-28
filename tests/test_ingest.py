@@ -71,3 +71,28 @@ def test_ingest_seed_skips_unchanged_indexed_article(
     assert ingest_seed(db, tmp_path) == 0
     db.add.assert_not_called()
     db.commit.assert_called_once()
+
+
+def test_ingest_seed_skips_non_help_markdown(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "faq.md").write_text("# FAQ\n\nMeta.\n", encoding="utf-8")
+    (tmp_path / "workspace-agent-knowledge-base.md").write_text(
+        "# Agent\n\nInternal tool policy.\n",
+        encoding="utf-8",
+    )
+    reindexed: list[str] = []
+
+    def fake_reindex(_db, article: Article) -> int:
+        reindexed.append(article.seed_path or "")
+        return 1
+
+    monkeypatch.setattr("app.ingest.reindex_article", fake_reindex)
+    monkeypatch.setattr(
+        "app.ingest.article_has_embeddings",
+        lambda _db, _id: False,
+    )
+    db = MagicMock()
+    db.scalars.return_value = _EmptyScalars()
+
+    count = ingest_seed(db, tmp_path)
+    assert count == 1
+    assert reindexed == ["seed/faq.md"]

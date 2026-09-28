@@ -34,9 +34,9 @@ ruff format --check app
 
 ## Seed
 
-`seed/workspace-agent-knowledge-base.md` is a copy of StudyForge platform policy. `seed/faq.md` is a small support FAQ.
+`seed/user-help.md` is end-user How it works content. `seed/faq.md` is Support meta FAQ. Workspace agent policy is kept in `docs/reference/` (not ingested).
 
-Ingest loads those files as published Help articles (`source: seed`), chunks at 800/120 characters, embeds with OpenRouter e5, and writes `tsvector` from title plus chunk text. Reindex of one article is delete-then-insert in the same transaction.
+Ingest loads only those seed Help files as published articles (`source: seed`), chunks at 800/120 characters, embeds with OpenRouter e5, and writes `tsvector` from title plus chunk text. Reindex of one article is delete-then-insert in the same transaction.
 
 ```bash
 # Compose API runs this on startup when OPENROUTER_API_KEY is set
@@ -46,7 +46,7 @@ docker compose up --build
 python -m app.ingest
 ```
 
-Staff can reindex one article with `POST /api/articles/{id}/reindex`. User tickets are filed on StudyForge `/support`. Eventarc CDC: Firestore write, `/__eventarc/publish`, Pub/Sub, `/pubsub/push`. Local emulator: `LOCAL_CDC_SHORTCUT=true`. Hybrid search is not wired yet.
+Staff can reindex one article with `POST /api/articles/{id}/reindex`. User tickets are filed on StudyForge `/support`. Eventarc CDC: Firestore write, `/__eventarc/publish`, Pub/Sub, `/pubsub/push`. Local emulator: `LOCAL_CDC_SHORTCUT=true`.
 
 If you already had a local volume from before Help-chunk columns existed: `docker compose down -v` then bring the stack up again.
 

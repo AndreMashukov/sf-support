@@ -23,7 +23,7 @@ Done. `GET /api/me` and staff routes use a verified Bearer token. `/` and `/staf
 
 ## 2. Real Postgres use
 
-Done. Seed markdown is ingested as published Help articles. Chunks store embeddings and `tsv`. `python -m app.ingest` or Compose `SEED_ON_STARTUP` reindexes when the article body is new. Hybrid search is still a stub (section 3).
+Done. Seed Help is `user-help.md` (end-user How it works) and `faq.md` only. Workspace agent policy is not ingested (`docs/reference/`). Chunks store embeddings and `tsv`. `python -m app.ingest` or Compose `SEED_ON_STARTUP` reindexes when the article body is new.
 
 ## 3. Hybrid search and the how-it-works graph
 

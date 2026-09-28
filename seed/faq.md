@@ -2,12 +2,14 @@
 
 ## What is StudyForge Support?
 
-A place to ask how StudyForge works, report a bug, or ask a billing question.
+A place to ask how StudyForge works, report a bug, or ask a billing question. User tickets are filed from StudyForge web at `/support`. Staff use the Support app for the queue and Help articles.
 
 ## How do credits work?
 
-Credit amounts live in the workspace-agent knowledge base article. Support answers must cite that article. Do not invent numbers.
+See the **Using StudyForge** Help article (`user-help.md`) for estimated credit costs per item. Support must cite that article or your in-app usage. Support must not invent credit numbers.
 
 ## When should I file a ticket?
 
-File a **bug** ticket if something is broken. File a **billing** ticket for charges or plans. Use **how it works** first for product questions. Click Still need help if the article answer is not enough.
+- **How it works**: try the Help answer first. Click **Still need help** if it is not enough.
+- **Bug**: something is broken. Always creates a ticket.
+- **Billing**: charges, plans, or account credits. Always creates a ticket.

@@ -17,16 +17,27 @@ from app.rag.index import article_has_embeddings, reindex_article
 logger = logging.getLogger(__name__)
 
 SEED_DIR = Path(__file__).resolve().parent.parent / "seed"
+# User-facing Help only. Agent policy lives in study-forge/docs, not in seed/.
+SEED_HELP_FILES = ("user-help.md", "faq.md")
+
+
+def seed_help_paths(seed_dir: Path = SEED_DIR) -> list[Path]:
+    paths: list[Path] = []
+    for name in SEED_HELP_FILES:
+        path = seed_dir / name
+        if path.is_file():
+            paths.append(path)
+    return paths
 
 
 def ingest_seed(db: Session, seed_dir: Path = SEED_DIR) -> int:
-    """Upsert seed/*.md as published articles (source seed) and reindex."""
+    """Upsert seed Help markdown as published articles (source seed) and reindex."""
     if not seed_dir.is_dir():
         logger.warning("Seed directory missing: %s", seed_dir)
         return 0
 
     indexed = 0
-    for path in sorted(seed_dir.glob("*.md")):
+    for path in seed_help_paths(seed_dir):
         body = path.read_text(encoding="utf-8")
         seed_path = f"seed/{path.name}"
         title = title_from_markdown(path, body)
