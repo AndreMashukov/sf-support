@@ -13,6 +13,7 @@ The shell is in place: FastAPI routes, SQLAlchemy models, Docker Compose, seed m
 - `STUDYFORGE_WEB_URL` back-link on support pages
 - Firebase ID token verify, `Principal` mapping, Jinja email sign-in, no anonymous tickets
 - Postgres Help index: pgvector + `tsvector`, seed ingest, chunk/embed/reindex
+- Hybrid search: vector cosine + FTS + RRF, top 6 chunks
 - User Support moves to StudyForge `/support`. Eventarc CDC copies label-hold (see architecture). Datastream is deferred.
 
 ## 1. Firebase sign-in
@@ -25,11 +26,8 @@ Done. Seed markdown is ingested as published Help articles. Chunks store embeddi
 
 ## 3. Hybrid search and the how-it-works graph
 
-`hybrid_search` returns no chunks. `run_how_it_works` never generates.
+Hybrid search is wired: cosine on `chunks.embedding` (top 8), FTS on `tsv` (top 8), RRF, return top 6. `run_how_it_works` still does not generate.
 
-- Vector: cosine on `chunks.embedding`, top k (start at 8)
-- Keyword: Postgres FTS on `tsv`, top k
-- Fuse with RRF. Pass top 6 chunks to the graph
 - LangGraph for **how_it_works** only: retrieve, grade context, generate cited answer or no-answer
 - Citations are article titles. No invented credit numbers
 - Zero chunks: skip the grade LLM, set not enough
@@ -80,4 +78,4 @@ Create, list, get, message, and close are stubs.
 
 ## Suggested first slice
 
-Hybrid search (vector + FTS + RRF) so the how-it-works graph has chunks.
+How-it-works LangGraph (grade + generate) on top of hybrid search.

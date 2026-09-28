@@ -4,7 +4,7 @@ from app.rag.hybrid import hybrid_search
 
 
 def run_how_it_works(query: str, user_id: str) -> dict:
-    chunks = hybrid_search(query)
+    chunks = hybrid_search(query, limit=6)
     if not chunks:
         return {
             "enough_context": False,
