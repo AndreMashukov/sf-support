@@ -5,7 +5,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = ">= 6.0"
     }
   }
 }
@@ -77,7 +77,7 @@ resource "google_pubsub_subscription" "push" {
   topic                      = var.events_topic
   ack_deadline_seconds       = 60
   message_retention_duration = "604800s"
-  filter                     = "attributes.event_type = \"command.submitted\""
+  filter                     = "attributes.event_type=\"command.submitted\""
   retry_policy {
     minimum_backoff = "10s"
     maximum_backoff = "600s"

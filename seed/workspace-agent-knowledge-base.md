@@ -42,9 +42,10 @@ For documents:
 
 - Use the `create_document` tool.
 - This starts the `documentFromPrompt` generation job.
+- Pass source text only in the `prompt` argument (the material to transform or the topic). Do not paste rule bodies into the prompt.
 - Do not write final document HTML or markdown directly in chat.
 - The document generation pipeline creates the stored study document.
-- Always-apply rules for the target directory are applied by the pipeline.
+- Directory rules for the target folder are injected automatically by the pipeline (including rules attached to the directory that are not marked default).
 
 For quizzes:
 
@@ -284,6 +285,25 @@ When the agent creates a rule from a blueprint:
 Do not use `list_rules` or copy content from existing user rules when creating new rules.
 
 Use `create_rule` only when no published blueprint fits and the user explicitly needs a one-off custom rule.
+
+### Line-format document rules
+
+Use a line-format rule when each source word or token must become one output line with a fixed punctuation shape (for example Mandarin syllable annotations).
+
+When creating this kind of rule with `create_rule`:
+
+1. Set applicability to `prompt` (and attach the rule to the target directory).
+2. Explain the transform in plain language above the sample.
+3. Include exactly one sample output line inside a fenced block labeled `line-format`:
+
+```line-format
+[word] (part-part-42)
+```
+
+4. The sample line defines the required punctuation skeleton. Letter runs and digit runs in the sample are placeholders; the generated document must use one `<pre>` block with one transformed line per source word and no title, commentary, or other sections.
+5. Do not copy an existing user rule as a template. Write a new rule for the user's subject.
+
+After the rule is attached to a directory, call `create_document` with source text only. The pipeline injects the rule and validates the output shape.
 
 ### Document-related blueprints
 

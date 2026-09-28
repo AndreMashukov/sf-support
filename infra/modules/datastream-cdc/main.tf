@@ -160,6 +160,11 @@ resource "google_datastream_connection_profile" "source" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes  = [postgresql_profile]
+    prevent_destroy = true
+  }
 }
 
 resource "google_datastream_connection_profile" "destination" {
@@ -214,6 +219,11 @@ resource "google_datastream_stream" "support_tickets" {
   }
 
   backfill_none {}
+
+  lifecycle {
+    ignore_changes  = [create_without_validation, source_config, destination_config]
+    prevent_destroy = true
+  }
 }
 
 output "gcs_bucket_name" {

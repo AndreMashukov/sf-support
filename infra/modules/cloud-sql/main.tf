@@ -4,7 +4,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = ">= 6.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -38,7 +38,7 @@ variable "tier" {
 
 variable "deletion_protection" {
   type    = bool
-  default = false
+  default = true
 }
 
 data "google_datastream_static_ips" "region" {
@@ -104,6 +104,10 @@ resource "google_sql_user" "app" {
   name     = "support"
   instance = google_sql_database_instance.support.name
   password = random_password.postgres.result
+
+  lifecycle {
+    ignore_changes = [password]
+  }
 }
 
 resource "google_sql_user" "datastream" {
@@ -111,6 +115,10 @@ resource "google_sql_user" "datastream" {
   name     = "datastream"
   instance = google_sql_database_instance.support.name
   password = random_password.datastream.result
+
+  lifecycle {
+    ignore_changes = [password]
+  }
 }
 
 output "instance_connection_name" {
