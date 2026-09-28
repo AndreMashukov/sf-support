@@ -15,3 +15,18 @@ dist/
 *.egg-info/
 example/
 tests/e2e/screenshots/
+
+# Terraform local / secrets
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+!*.tfvars.example
+!**/*.tfvars.example
+crash.log
+*.crash.log
