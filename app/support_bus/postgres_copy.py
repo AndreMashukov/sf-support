@@ -98,6 +98,24 @@ def persist_ticket(
         logger.exception("Skip ticket persist")
 
 
+def get_ticket_category(ticket_id: str) -> str | None:
+    try:
+        db = SessionLocal()
+        try:
+            ticket = db.get(Ticket, uuid.UUID(ticket_id))
+            if ticket is None:
+                return None
+            return str(ticket.category.value)
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip ticket lookup: Postgres is not available")
+        return None
+    except Exception:
+        logger.exception("Skip ticket lookup")
+        return None
+
+
 def persist_ticket_message(*, ticket_id: str, message: dict[str, Any]) -> bool:
     write_id = str(message.get("write_id") or "")
     try:

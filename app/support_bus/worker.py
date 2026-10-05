@@ -7,7 +7,12 @@ from typing import Any
 
 from app.rag.graph import run_how_it_works
 from app.support_bus.events import ask_completed_payload, new_write_id
-from app.support_bus.postgres_copy import persist_ask_run, persist_ticket, persist_ticket_message
+from app.support_bus.postgres_copy import (
+    get_ticket_category,
+    persist_ask_run,
+    persist_ticket,
+    persist_ticket_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,43 @@ def handle_command(event: dict[str, Any]) -> dict[str, Any] | None:
 
 def _iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _rag_body_from_result(result: dict[str, Any]) -> str:
+    answer = result.get("answer")
+    if answer:
+        body = str(answer)
+        citations = result.get("citations") or []
+        if citations:
+            sources = ", ".join(str(item) for item in citations)
+            body = f"{body}\n\nSources: {sources}"
+        return body
+    return str(
+        result.get("no_answer_reason") or "I do not have that in the help articles."
+    )
+
+
+def _append_rag_reply(
+    *,
+    ticket_id: str,
+    user_id: str,
+    query: str,
+    command_id: str | None = None,
+) -> None:
+    result = run_how_it_works(query=query, user_id=user_id)
+    if command_id:
+        persist_ask_run(user_id, query, command_id)
+    write_id = new_write_id()
+    message = {
+        "id": str(uuid.uuid4()),
+        "author_type": "system",
+        "author_id": None,
+        "body": _rag_body_from_result(result),
+        "created_at": _iso(),
+        "write_id": write_id,
+    }
+    if not persist_ticket_message(ticket_id=ticket_id, message=message):
+        logger.warning("Could not append RAG reply to ticket %s", ticket_id)
 
 
 def _handle_ask(event: dict[str, Any]) -> dict[str, Any]:
@@ -53,8 +95,9 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
     url = payload.get("url")
     user_id = str(event.get("user_id") or "")
     user_email = str(event.get("user_email") or "")
+    command_id = str(event.get("command_id") or "")
     try:
-        ticket_id = uuid.UUID(str(event.get("command_id") or ""))
+        ticket_id = uuid.UUID(command_id) if command_id else uuid.uuid4()
     except ValueError:
         ticket_id = uuid.uuid4()
     message_id = uuid.uuid4()
@@ -81,22 +124,33 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
         messages=messages,
         write_id=write_id,
     )
+    if category == "how_it_works" and query:
+        _append_rag_reply(
+            ticket_id=str(ticket_id),
+            user_id=user_id,
+            query=query,
+            command_id=command_id or str(ticket_id),
+        )
 
 
 def _handle_append_message(event: dict[str, Any]) -> None:
     payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
     ticket_id = str(payload.get("ticketId") or "")
     body = str(payload.get("body") or "").strip()
+    user_id = str(event.get("user_id") or "")
     if not ticket_id or not body:
         return
     write_id = new_write_id()
     message = {
         "id": str(uuid.uuid4()),
         "author_type": "user",
-        "author_id": str(event.get("user_id") or ""),
+        "author_id": user_id,
         "body": body,
         "created_at": _iso(),
         "write_id": write_id,
     }
     if not persist_ticket_message(ticket_id=ticket_id, message=message):
         logger.warning("AppendMessage for unknown ticket %s", ticket_id)
+        return
+    if get_ticket_category(ticket_id) == "how_it_works":
+        _append_rag_reply(ticket_id=ticket_id, user_id=user_id, query=body)
