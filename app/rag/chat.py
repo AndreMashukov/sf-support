@@ -24,7 +24,10 @@ GRADE_JSON_SCHEMA: dict[str, Any] = {
         },
         "reason": {
             "type": "string",
-            "description": "One or two sentences. Empty if enough_context is true.",
+            "description": (
+                "Internal note for logs. Not shown to the user. "
+                "Empty if enough_context is true."
+            ),
         },
     },
     "required": ["enough_context", "reason"],
@@ -36,7 +39,10 @@ GENERATE_JSON_SCHEMA: dict[str, Any] = {
     "properties": {
         "answer": {
             "type": "string",
-            "description": "Answer using only the provided help chunks.",
+            "description": (
+                "Plain-language answer for the user. Do not mention retrieval, "
+                "chunks, passages, or missing context."
+            ),
         },
         "citation_titles": {
             "type": "array",
@@ -123,10 +129,11 @@ def grade_context(query: str, chunks: list[dict[str, Any]]) -> tuple[bool, str]:
         raise RuntimeError("TOGETHER_AI_API_KEY is not set")
     allowed_titles = _allowed_titles(chunks)
     system = (
-        "You grade whether help-article chunks can answer a StudyForge how-it-works "
-        "question without guessing. Set enough_context true only when the chunks "
+        "You grade whether help excerpts can answer a StudyForge how-it-works "
+        "question without guessing. Set enough_context true only when the excerpts "
         "clearly contain the facts needed. Do not infer billing amounts or credit "
-        "numbers unless they appear in the chunks."
+        "numbers unless they appear in the excerpts. "
+        "The reason is an internal log note and is not shown to the user."
     )
     human = (
         f"Question:\n{query}\n\n"
@@ -159,14 +166,18 @@ def generate_cited_answer(
     allowed = _allowed_titles(chunks)
     allowed_set = set(allowed)
     system = (
-        "Answer the user question using only the provided help chunks. "
+        "Answer the user question using only the help excerpts. "
+        "Write for the user in plain language. "
+        "Never mention chunks, excerpts, retrieval, context, passages, "
+        "or that some information was missing. "
         "Do not invent policies, features, or credit numbers. "
         "citation_titles must be a subset of the allowed titles list and only "
         "include titles you actually used."
     )
     human = (
         f"Question:\n{query}\n\n"
-        f"Chunks:\n{_format_chunks_for_prompt(chunks)}\n\n"
+        f"Help excerpts (internal, do not mention them):\n"
+        f"{_format_chunks_for_prompt(chunks)}\n\n"
         f"Allowed citation titles: {json.dumps(allowed)}"
     )
     model = _chat_model(

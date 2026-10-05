@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import asdict, is_dataclass
 from typing import Literal, TypedDict
@@ -11,6 +12,8 @@ from langgraph.graph import END, START, StateGraph
 from app.rag import chat as rag_chat
 from app.rag.hybrid import hybrid_search
 from app.settings import settings
+
+logger = logging.getLogger(__name__)
 
 NO_CHUNKS_REASON = "No help-article chunks retrieved."
 DEFAULT_NO_ANSWER = "I do not have that in the help articles."
@@ -74,9 +77,10 @@ def _grade_context(state: HowItWorksState) -> dict:
         }
     if enough:
         return {"enough_context": True, "no_answer_reason": None}
+    logger.info("how-it-works grade refused: %s", reason or "empty")
     return {
         "enough_context": False,
-        "no_answer_reason": reason or DEFAULT_NO_ANSWER,
+        "no_answer_reason": DEFAULT_NO_ANSWER,
     }
 
 
@@ -110,14 +114,12 @@ def _generate_cited(state: HowItWorksState) -> dict:
 
 def _no_answer(state: HowItWorksState) -> dict:
     if not state.get("chunks"):
-        reason = NO_CHUNKS_REASON
-    else:
-        reason = state.get("no_answer_reason") or DEFAULT_NO_ANSWER
+        logger.info(NO_CHUNKS_REASON)
     return {
         "enough_context": False,
         "answer": None,
         "citations": [],
-        "no_answer_reason": reason,
+        "no_answer_reason": state.get("no_answer_reason") or DEFAULT_NO_ANSWER,
     }
 
 

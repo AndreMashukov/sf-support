@@ -5,7 +5,6 @@ import pytest
 
 from app.rag.graph import (
     DEFAULT_NO_ANSWER,
-    NO_CHUNKS_REASON,
     get_graph,
     run_how_it_works,
 )
@@ -42,7 +41,7 @@ def test_zero_chunks_skips_llm(monkeypatch) -> None:
     assert result["enough_context"] is False
     assert result["answer"] is None
     assert result["citations"] == []
-    assert result["no_answer_reason"] == NO_CHUNKS_REASON
+    assert result["no_answer_reason"] == DEFAULT_NO_ANSWER
     assert result["user_id"] == "user-1"
     grade.assert_not_called()
     generate.assert_not_called()
@@ -67,7 +66,7 @@ def test_grade_false_skips_generate(monkeypatch) -> None:
     result = run_how_it_works("credits", "user-2")
 
     assert result["enough_context"] is False
-    assert result["no_answer_reason"] == "Chunks are off-topic."
+    assert result["no_answer_reason"] == DEFAULT_NO_ANSWER
     generate.assert_not_called()
 
 
