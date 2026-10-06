@@ -31,6 +31,10 @@ def ask_completed_payload(
     user_id: str,
     query: str,
     result: dict[str, Any],
+    resolution: str | None = None,
+    resolved_at: str | None = None,
+    ticket_id: str | None = None,
+    created_at: str | None = None,
 ) -> dict[str, Any]:
     return {
         "v": 1,
@@ -44,6 +48,10 @@ def ask_completed_payload(
         "citations": result.get("citations") or [],
         "no_answer_reason": result.get("no_answer_reason"),
         "status": "completed",
+        "resolution": resolution,
+        "resolved_at": resolved_at,
+        "ticket_id": ticket_id,
+        "created_at": created_at,
     }
 
 

@@ -91,6 +91,7 @@ def test_grade_true_returns_answer_and_citations(monkeypatch) -> None:
     assert result["answer"] == "Credits reset monthly."
     assert result["citations"] == ["StudyForge FAQ"]
     assert result["no_answer_reason"] is None
+    assert result["chunk_ids"] == ["c1"]
 
 
 def test_grade_failure_is_no_answer_not_exception(monkeypatch) -> None:

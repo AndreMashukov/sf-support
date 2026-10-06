@@ -153,11 +153,18 @@ def get_graph():
 
 
 def _state_to_result(state: HowItWorksState) -> dict:
+    chunks = state.get("chunks") or []
+    chunk_ids = [
+        str(chunk.get("chunk_id"))
+        for chunk in chunks
+        if isinstance(chunk, dict) and chunk.get("chunk_id")
+    ]
     return {
         "enough_context": bool(state.get("enough_context")),
         "answer": state.get("answer"),
         "citations": list(state.get("citations") or []),
         "no_answer_reason": state.get("no_answer_reason"),
+        "chunk_ids": chunk_ids,
         "user_id": state.get("user_id", ""),
     }
 

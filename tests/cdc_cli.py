@@ -44,7 +44,7 @@ def main() -> int:
         "no_answer_reason": "No help-article chunks retrieved.",
         "user_id": user_id,
     }
-    worker.persist_ask_run = lambda *args, **kwargs: None  # type: ignore[method-assign]
+    worker.persist_ask_run_from_result = lambda *args, **kwargs: None  # type: ignore[method-assign]
     cdc.get_doc = get_doc  # type: ignore[method-assign]
     consumer.get_doc = get_doc  # type: ignore[method-assign]
     consumer.handle_command = worker.handle_command  # type: ignore[method-assign]

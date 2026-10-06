@@ -8,8 +8,11 @@ from typing import Any
 from app.rag.graph import run_how_it_works
 from app.support_bus.events import ask_completed_payload, new_write_id
 from app.support_bus.postgres_copy import (
+    get_rag_run_for_user,
     get_ticket_category,
-    persist_ask_run,
+    link_rag_run_escalated,
+    mark_rag_run_confirmed,
+    persist_ask_run_from_result,
     persist_ticket,
     persist_ticket_message,
 )
@@ -27,6 +30,8 @@ def handle_command(event: dict[str, Any]) -> dict[str, Any] | None:
     if command_type == "AppendMessage":
         _handle_append_message(event)
         return None
+    if command_type == "MarkAskResolved":
+        return _handle_mark_ask_resolved(event)
     logger.warning("Unknown support command type: %s", command_type)
     return None
 
@@ -49,16 +54,34 @@ def _rag_body_from_result(result: dict[str, Any]) -> str:
     )
 
 
+def _ask_payload_from_result_dict(
+    *,
+    command_id: str,
+    write_id: str,
+    user_id: str,
+    query: str,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    return ask_completed_payload(
+        command_id=command_id,
+        write_id=write_id,
+        user_id=user_id,
+        query=query,
+        result=result,
+        resolution=result.get("resolution"),
+        resolved_at=result.get("resolved_at"),
+        ticket_id=result.get("ticket_id"),
+        created_at=result.get("created_at"),
+    )
+
+
 def _append_rag_reply(
     *,
     ticket_id: str,
     user_id: str,
     query: str,
-    command_id: str | None = None,
 ) -> None:
     result = run_how_it_works(query=query, user_id=user_id)
-    if command_id:
-        persist_ask_run(user_id, query, command_id)
     write_id = new_write_id()
     message = {
         "id": str(uuid.uuid4()),
@@ -78,12 +101,33 @@ def _handle_ask(event: dict[str, Any]) -> dict[str, Any]:
     user_id = str(event.get("user_id") or "")
     command_id = str(event.get("command_id") or "")
     result = run_how_it_works(query=query, user_id=user_id)
-    persist_ask_run(user_id, query, command_id)
+    persist_ask_run_from_result(user_id, query, command_id, result)
     return ask_completed_payload(
         command_id=command_id,
         write_id=new_write_id(),
         user_id=user_id,
         query=query,
+        result=result,
+        created_at=_iso(),
+    )
+
+
+def _handle_mark_ask_resolved(event: dict[str, Any]) -> dict[str, Any] | None:
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    ask_command_id = str(payload.get("askCommandId") or "").strip()
+    user_id = str(event.get("user_id") or "")
+    if not ask_command_id or not user_id:
+        logger.warning("MarkAskResolved missing askCommandId or user_id")
+        return None
+    result = mark_rag_run_confirmed(ask_command_id, user_id)
+    if result is None:
+        logger.warning("MarkAskResolved: no rag_run for %s", ask_command_id)
+        return None
+    return _ask_payload_from_result_dict(
+        command_id=ask_command_id,
+        write_id=new_write_id(),
+        user_id=user_id,
+        query=str(result.get("query") or ""),
         result=result,
     )
 
@@ -93,6 +137,7 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
     category = str(payload.get("category") or "bug")
     query = str(payload.get("query") or "").strip()
     url = payload.get("url")
+    ask_command_id = str(payload.get("askCommandId") or "").strip()
     user_id = str(event.get("user_id") or "")
     user_email = str(event.get("user_email") or "")
     command_id = str(event.get("command_id") or "")
@@ -100,13 +145,12 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
         ticket_id = uuid.UUID(command_id) if command_id else uuid.uuid4()
     except ValueError:
         ticket_id = uuid.uuid4()
-    message_id = uuid.uuid4()
     write_id = new_write_id()
     now = _iso()
     title = query[:300] or "Support ticket"
-    messages = [
+    messages: list[dict[str, Any]] = [
         {
-            "id": str(message_id),
+            "id": str(uuid.uuid4()),
             "author_type": "user",
             "author_id": user_id,
             "body": query,
@@ -114,6 +158,37 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
             "write_id": write_id,
         }
     ]
+
+    if category == "how_it_works" and ask_command_id:
+        draft = get_rag_run_for_user(ask_command_id, user_id)
+        if draft is None:
+            logger.warning(
+                "CreateTicket rejected: missing rag_run for ask %s", ask_command_id
+            )
+            return
+        messages.append(
+            {
+                "id": str(uuid.uuid4()),
+                "author_type": "system",
+                "author_id": None,
+                "body": _rag_body_from_result(draft),
+                "created_at": now,
+                "write_id": write_id,
+            }
+        )
+        persist_ticket(
+            ticket_id=ticket_id,
+            user_id=user_id,
+            user_email=user_email,
+            category=category,
+            title=title,
+            url=str(url) if url else None,
+            messages=messages,
+            write_id=write_id,
+        )
+        link_rag_run_escalated(ask_command_id, user_id, ticket_id)
+        return
+
     persist_ticket(
         ticket_id=ticket_id,
         user_id=user_id,
@@ -125,12 +200,7 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
         write_id=write_id,
     )
     if category == "how_it_works" and query:
-        _append_rag_reply(
-            ticket_id=str(ticket_id),
-            user_id=user_id,
-            query=query,
-            command_id=command_id or str(ticket_id),
-        )
+        _append_rag_reply(ticket_id=str(ticket_id), user_id=user_id, query=query)
 
 
 def _handle_append_message(event: dict[str, Any]) -> None:

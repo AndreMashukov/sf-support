@@ -36,7 +36,7 @@ def test_handle_ask_uses_graph(monkeypatch) -> None:
             "user_id": user_id,
         },
     )
-    monkeypatch.setattr(worker, "persist_ask_run", lambda *args: None)
+    monkeypatch.setattr(worker, "persist_ask_run_from_result", lambda *args: None)
 
     result = worker.handle_command(
         {

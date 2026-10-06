@@ -14,7 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
+from sqlalchemy.dialects.postgresql import JSON, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import EMBEDDING_DIMENSIONS, Base
@@ -45,6 +45,11 @@ class AuthorType(enum.StrEnum):
     user = "user"
     staff = "staff"
     system = "system"
+
+
+class AskResolution(enum.StrEnum):
+    confirmed_helped = "confirmed_helped"
+    escalated = "escalated"
 
 
 class Article(Base):
@@ -152,6 +157,15 @@ class RagRun(Base):
     )
     command_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     langsmith_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    enough_context: Mapped[bool | None] = mapped_column(nullable=True)
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    citations: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    no_answer_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    chunk_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    resolution: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -9,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import SessionLocal
 from app.models import (
+    AskResolution,
     AuthorType,
     Message,
     RagRun,
@@ -20,22 +22,54 @@ from app.models import (
 logger = logging.getLogger(__name__)
 
 
-def persist_ask_run(user_id: str, query: str, command_id: str) -> None:
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def rag_run_to_result(run: RagRun) -> dict[str, Any]:
+    return {
+        "query": run.query,
+        "enough_context": bool(run.enough_context),
+        "answer": run.answer,
+        "citations": list(run.citations or []),
+        "no_answer_reason": run.no_answer_reason,
+        "chunk_ids": [str(item) for item in (run.chunk_ids or [])],
+        "user_id": run.user_id,
+        "resolution": run.resolution,
+        "ticket_id": str(run.ticket_id) if run.ticket_id else None,
+        "resolved_at": run.resolved_at.isoformat() if run.resolved_at else None,
+        "created_at": run.created_at.isoformat() if run.created_at else None,
+    }
+
+
+def persist_ask_run_from_result(
+    user_id: str,
+    query: str,
+    command_id: str,
+    result: dict[str, Any],
+) -> None:
+    if not command_id:
+        return
     try:
         db = SessionLocal()
         try:
-            if command_id:
-                existing = (
-                    db.query(RagRun).filter(RagRun.command_id == command_id).first()
-                )
-                if existing is not None:
-                    return
+            existing = (
+                db.query(RagRun).filter(RagRun.command_id == command_id).first()
+            )
+            if existing is not None:
+                return
+            chunk_ids = result.get("chunk_ids") or []
             db.add(
                 RagRun(
                     user_id=user_id,
                     category=TicketCategory.how_it_works,
                     query=query,
                     command_id=command_id,
+                    enough_context=bool(result.get("enough_context")),
+                    answer=result.get("answer"),
+                    citations=list(result.get("citations") or []),
+                    no_answer_reason=result.get("no_answer_reason"),
+                    chunk_ids=[str(item) for item in chunk_ids],
                 )
             )
             db.commit()
@@ -47,6 +81,102 @@ def persist_ask_run(user_id: str, query: str, command_id: str) -> None:
         logger.warning("Skip rag_runs persist: Postgres is not available")
     except Exception:
         logger.exception("Skip rag_runs persist")
+
+
+def get_rag_run_for_user(command_id: str, user_id: str) -> dict[str, Any] | None:
+    if not command_id or not user_id:
+        return None
+    try:
+        db = SessionLocal()
+        try:
+            run = (
+                db.query(RagRun)
+                .filter(
+                    RagRun.command_id == command_id,
+                    RagRun.user_id == user_id,
+                )
+                .one_or_none()
+            )
+            if run is None:
+                return None
+            return rag_run_to_result(run)
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip rag_run lookup: Postgres is not available")
+        return None
+    except Exception:
+        logger.exception("Skip rag_run lookup")
+        return None
+
+
+def mark_rag_run_confirmed(command_id: str, user_id: str) -> dict[str, Any] | None:
+    try:
+        db = SessionLocal()
+        try:
+            run = (
+                db.query(RagRun)
+                .filter(
+                    RagRun.command_id == command_id,
+                    RagRun.user_id == user_id,
+                )
+                .one_or_none()
+            )
+            if run is None:
+                return None
+            if run.resolution in {
+                AskResolution.confirmed_helped.value,
+                AskResolution.escalated.value,
+            }:
+                return rag_run_to_result(run)
+            run.resolution = AskResolution.confirmed_helped.value
+            run.resolved_at = _utc_now()
+            db.commit()
+            db.refresh(run)
+            return rag_run_to_result(run)
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip rag_run confirm: Postgres is not available")
+        return None
+    except Exception:
+        logger.exception("Skip rag_run confirm")
+        return None
+
+
+def link_rag_run_escalated(
+    command_id: str,
+    user_id: str,
+    ticket_id: uuid.UUID,
+) -> bool:
+    try:
+        db = SessionLocal()
+        try:
+            run = (
+                db.query(RagRun)
+                .filter(
+                    RagRun.command_id == command_id,
+                    RagRun.user_id == user_id,
+                )
+                .one_or_none()
+            )
+            if run is None:
+                return False
+            if run.resolution == AskResolution.confirmed_helped.value:
+                return False
+            run.ticket_id = ticket_id
+            run.resolution = AskResolution.escalated.value
+            run.resolved_at = _utc_now()
+            db.commit()
+            return True
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip rag_run escalate link: Postgres is not available")
+        return False
+    except Exception:
+        logger.exception("Skip rag_run escalate link")
+        return False
 
 
 def persist_ticket(

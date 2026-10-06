@@ -53,7 +53,9 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
             "user_id": user_id,
         },
     )
-    monkeypatch.setattr(worker, "persist_ask_run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        worker, "persist_ask_run_from_result", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(cdc, "get_doc", get_doc)
     monkeypatch.setattr(consumer, "get_doc", get_doc)
     monkeypatch.setattr(consumer, "handle_command", worker.handle_command)

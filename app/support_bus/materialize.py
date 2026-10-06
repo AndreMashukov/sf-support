@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from app.support_bus.collections import ASK_RESULTS_LEAN, MESSAGES, TICKETS_LEAN
 from app.support_bus.firestore_io import get_doc, lean_newer, set_doc, set_subdoc
@@ -14,20 +14,25 @@ def materialize_ask_result(sot: dict[str, Any]) -> None:
     existing = get_doc(ASK_RESULTS_LEAN, command_id)
     if not lean_newer(existing, write_id):
         return
-    set_doc(
-        ASK_RESULTS_LEAN,
-        command_id,
-        {
-            "userId": sot.get("user_id"),
-            "query": sot.get("query"),
-            "enoughContext": sot.get("enough_context", False),
-            "answer": sot.get("answer"),
-            "citations": sot.get("citations") or [],
-            "noAnswerReason": sot.get("no_answer_reason"),
-            "status": sot.get("status") or "completed",
-            "write_id": write_id,
-        },
-    )
+    doc: dict[str, Any] = {
+        "userId": sot.get("user_id"),
+        "query": sot.get("query"),
+        "enoughContext": sot.get("enough_context", False),
+        "answer": sot.get("answer"),
+        "citations": sot.get("citations") or [],
+        "noAnswerReason": sot.get("no_answer_reason"),
+        "status": sot.get("status") or "completed",
+        "write_id": write_id,
+    }
+    if sot.get("resolution") is not None:
+        doc["resolution"] = sot.get("resolution")
+    if sot.get("resolved_at"):
+        doc["resolvedAt"] = sot.get("resolved_at")
+    if sot.get("ticket_id"):
+        doc["ticketId"] = sot.get("ticket_id")
+    prior = cast(dict[str, Any], existing) if existing else {}
+    doc["createdAt"] = prior.get("createdAt") or sot.get("created_at")
+    set_doc(ASK_RESULTS_LEAN, command_id, doc)
 
 
 def materialize_ticket(sot: dict[str, Any]) -> None:
