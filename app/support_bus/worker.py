@@ -101,6 +101,35 @@ def _publish_ask_update(ask_command_id: str, user_id: str, query: str) -> None:
         logger.warning("Failed to publish ask.completed for %s", ask_command_id)
 
 
+def _persist_ask_turn_messages(
+    *,
+    command_id: str,
+    user_query: str,
+    author_id: str | None,
+    assistant_body: str,
+) -> None:
+    user_row = append_ask_message(
+        command_id=command_id,
+        author_type="user",
+        body=user_query,
+        author_id=author_id,
+    )
+    if user_row is None:
+        raise RuntimeError(
+            "Failed to persist user ask_message for command %s" % command_id
+        )
+    system_row = append_ask_message(
+        command_id=command_id,
+        author_type="system",
+        body=assistant_body,
+        author_id=None,
+    )
+    if system_row is None:
+        raise RuntimeError(
+            "Failed to persist system ask_message for command %s" % command_id
+        )
+
+
 def _complete_ask_turn(
     *,
     command_id: str,
@@ -116,17 +145,11 @@ def _complete_ask_turn(
     else:
         update_rag_run_latest_result(command_id, user_id, result)
 
-    append_ask_message(
+    _persist_ask_turn_messages(
         command_id=command_id,
-        author_type="user",
-        body=user_query,
+        user_query=user_query,
         author_id=author_id,
-    )
-    append_ask_message(
-        command_id=command_id,
-        author_type="system",
-        body=_rag_body_from_result(result),
-        author_id=None,
+        assistant_body=_rag_body_from_result(result),
     )
 
     snapshot = get_rag_run_for_user(command_id, user_id)

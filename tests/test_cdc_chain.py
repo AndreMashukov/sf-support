@@ -66,8 +66,23 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     monkeypatch.setattr(
         worker, "persist_ask_run_from_result", lambda *args, **kwargs: None
     )
-    monkeypatch.setattr(worker, "append_ask_message", lambda **kwargs: None)
-    monkeypatch.setattr(worker, "list_ask_messages", lambda command_id: [])
+    def fake_append(**kwargs):
+        return {
+            "id": "msg-" + str(kwargs.get("author_type")),
+            "author_type": kwargs.get("author_type"),
+            "body": kwargs.get("body"),
+            "created_at": "2026-10-06T00:00:00+00:00",
+        }
+
+    stored_messages: list[dict] = []
+
+    def append_track(**kwargs):
+        row = fake_append(**kwargs)
+        stored_messages.append(row)
+        return row
+
+    monkeypatch.setattr(worker, "append_ask_message", append_track)
+    monkeypatch.setattr(worker, "list_ask_messages", lambda command_id: stored_messages)
     monkeypatch.setattr(worker, "get_rag_run_for_user", lambda command_id, user_id: None)
     monkeypatch.setattr(consumer, "handle_command", worker.handle_command)
     monkeypatch.setattr(materialize, "get_doc", get_doc)

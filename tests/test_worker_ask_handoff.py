@@ -13,7 +13,14 @@ def test_handle_ask_persists_full_result(monkeypatch) -> None:
         captured["args"] = (user_id, query, command_id, result)
 
     def append(**kwargs):
-        stored_messages.append(kwargs)
+        row = {
+            "id": f"m{len(stored_messages)}",
+            "author_type": kwargs.get("author_type"),
+            "body": kwargs.get("body"),
+            "created_at": "2026-10-06T00:00:00+00:00",
+        }
+        stored_messages.append(row)
+        return row
 
     monkeypatch.setattr(
         worker,
@@ -131,6 +138,37 @@ def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
     assert len(published) == 1
     assert published[0]["event_type"] == "ask.completed"
     assert published[0]["command_id"] == "ask-1"
+
+
+def test_complete_ask_turn_fails_when_message_append_fails(monkeypatch) -> None:
+    monkeypatch.setattr(
+        worker,
+        "run_how_it_works",
+        lambda query, user_id, conversation=None: {
+            "enough_context": True,
+            "answer": "Yes",
+            "citations": [],
+            "no_answer_reason": None,
+            "chunk_ids": [],
+            "user_id": user_id,
+        },
+    )
+    monkeypatch.setattr(worker, "persist_ask_run_from_result", lambda *args, **kwargs: None)
+    monkeypatch.setattr(worker, "append_ask_message", lambda **kwargs: None)
+
+    try:
+        worker.handle_command(
+            {
+                "type": "AskHowItWorks",
+                "command_id": "ask-fail",
+                "user_id": "user-1",
+                "payload": {"query": "credits"},
+            }
+        )
+        raised = False
+    except RuntimeError:
+        raised = True
+    assert raised
 
 
 def test_mark_ask_resolved_returns_payload(monkeypatch) -> None:

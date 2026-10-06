@@ -45,7 +45,20 @@ def main() -> int:
         "user_id": user_id,
     }
     worker.persist_ask_run_from_result = lambda *args, **kwargs: None  # type: ignore[method-assign]
-    worker.append_ask_message = lambda **kwargs: None  # type: ignore[method-assign]
+    stored_messages: list[dict] = []
+
+    def append_track(**kwargs):
+        row = {
+            "id": "msg-" + str(len(stored_messages)),
+            "author_type": kwargs.get("author_type"),
+            "body": kwargs.get("body"),
+            "created_at": "2026-10-06T00:00:00+00:00",
+        }
+        stored_messages.append(row)
+        return row
+
+    worker.append_ask_message = append_track  # type: ignore[method-assign]
+    worker.list_ask_messages = lambda command_id: stored_messages  # type: ignore[method-assign]
     worker.list_ask_messages = lambda command_id: []  # type: ignore[method-assign]
     worker.get_rag_run_for_user = lambda command_id, user_id: None  # type: ignore[method-assign]
     consumer.handle_command = worker.handle_command  # type: ignore[method-assign]
