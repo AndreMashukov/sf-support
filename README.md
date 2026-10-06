@@ -46,7 +46,7 @@ docker compose up --build
 python -m app.ingest
 ```
 
-Staff can reindex one article with `POST /api/articles/{id}/reindex`. User tickets are filed on StudyForge `/support`. Eventarc CDC: Firestore write, `/__eventarc/publish`, Pub/Sub, `/pubsub/push`. Local emulator: `LOCAL_CDC_SHORTCUT=true`.
+Staff can reindex one article with `POST /api/articles/{id}/reindex`. User tickets are filed on StudyForge `/support`. Commands arrive as Pub/Sub `command.submitted` on `/pubsub/push`. Ticket CDC is Datastream to `/__eventarc/publish`. Local ticket poll: `LOCAL_CDC_SHORTCUT=true`. sf-support does not read Firestore.
 
 If you already had a local volume from before Help-chunk columns existed: `docker compose down -v` then bring the stack up again.
 

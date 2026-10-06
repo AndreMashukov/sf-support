@@ -4,8 +4,8 @@ import json
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.support_bus import bus, cdc, consumer, materialize, worker
-from app.support_bus.collections import ASK_RESULTS_LEAN, ASK_SOT, COMMANDS, TICKET_SOT
+from app.support_bus import bus, consumer, materialize, worker
+from app.support_bus.collections import ASK_RESULTS_LEAN, ASK_SOT, COMMANDS
 
 client = TestClient(app)
 
@@ -28,6 +28,16 @@ def test_eventarc_unknown_path_is_noop() -> None:
     assert response.status_code == 204
 
 
+def test_firestore_eventarc_does_not_publish(monkeypatch) -> None:
+    bus.reset_memory()
+    response = client.post(
+        "/__eventarc/publish",
+        headers={"ce-subject": f"documents/{COMMANDS}/cmd-1"},
+    )
+    assert response.status_code == 204
+    assert bus.memory_messages() == []
+
+
 def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     store: dict[tuple[str, str], dict] = {}
     set_calls: list[tuple] = []
@@ -45,7 +55,7 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     monkeypatch.setattr(
         worker,
         "run_how_it_works",
-        lambda query, user_id: {
+        lambda query, user_id, conversation=None: {
             "enough_context": False,
             "answer": None,
             "citations": [],
@@ -56,32 +66,27 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     monkeypatch.setattr(
         worker, "persist_ask_run_from_result", lambda *args, **kwargs: None
     )
-    monkeypatch.setattr(cdc, "get_doc", get_doc)
-    monkeypatch.setattr(consumer, "get_doc", get_doc)
+    monkeypatch.setattr(worker, "append_ask_message", lambda **kwargs: None)
+    monkeypatch.setattr(worker, "list_ask_messages", lambda command_id: [])
+    monkeypatch.setattr(worker, "get_rag_run_for_user", lambda command_id, user_id: None)
     monkeypatch.setattr(consumer, "handle_command", worker.handle_command)
     monkeypatch.setattr(materialize, "get_doc", get_doc)
     monkeypatch.setattr(materialize, "set_doc", set_doc)
     bus.reset_memory()
 
     command_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    store[(COMMANDS, command_id)] = {
-        "type": "AskHowItWorks",
-        "userId": "u1",
-        "userEmail": "u@x.y",
+    submitted = {
+        "v": 1,
+        "event_type": "command.submitted",
         "write_id": "w1",
+        "command_id": command_id,
+        "type": "AskHowItWorks",
+        "user_id": "u1",
+        "user_email": "u@x.y",
         "payload": {"query": "credits"},
     }
 
-    first = client.post(
-        "/__eventarc/publish",
-        headers={"ce-subject": f"documents/{COMMANDS}/{command_id}"},
-    )
-    assert first.status_code == 204
-    published = bus.memory_messages()
-    assert published[0]["payload"]["event_type"] == "command.submitted"
-
-    bus.reset_memory()
-    second = client.post("/pubsub/push", json=_envelope(published[0]["payload"]))
+    second = client.post("/pubsub/push", json=_envelope(submitted))
     assert second.status_code == 204
     assert (ASK_SOT, command_id) not in store
     domain = bus.memory_messages()
@@ -107,23 +112,7 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     assert lean["noAnswerReason"] == "No help-article chunks retrieved."
 
 
-def test_ticket_sot_eventarc_is_noop(monkeypatch) -> None:
-    store = {
-        (TICKET_SOT, "t1"): {
-            "ticket_id": "t1",
-            "user_id": "u1",
-            "write_id": "w2",
-            "title": "bug",
-            "status": "open",
-            "messages": [],
-        }
-    }
-
-    def get_doc(collection: str, doc_id: str):
-        row = store.get((collection, doc_id))
-        return None if row is None else {**row, "_id": doc_id}
-
-    monkeypatch.setattr(cdc, "get_doc", get_doc)
+def test_ticket_sot_eventarc_is_noop() -> None:
     bus.reset_memory()
     response = client.post(
         "/__eventarc/publish",

@@ -7,14 +7,18 @@ from app.support_bus import worker
 
 def test_handle_ask_persists_full_result(monkeypatch) -> None:
     captured: dict = {}
+    stored_messages: list[dict] = []
 
     def capture(user_id, query, command_id, result):
         captured["args"] = (user_id, query, command_id, result)
 
+    def append(**kwargs):
+        stored_messages.append(kwargs)
+
     monkeypatch.setattr(
         worker,
         "run_how_it_works",
-        lambda query, user_id: {
+        lambda query, user_id, conversation=None: {
             "enough_context": True,
             "answer": "Yes",
             "citations": ["FAQ"],
@@ -24,6 +28,22 @@ def test_handle_ask_persists_full_result(monkeypatch) -> None:
         },
     )
     monkeypatch.setattr(worker, "persist_ask_run_from_result", capture)
+    monkeypatch.setattr(worker, "append_ask_message", append)
+    monkeypatch.setattr(worker, "list_ask_messages", lambda command_id: stored_messages)
+    monkeypatch.setattr(
+        worker,
+        "get_rag_run_for_user",
+        lambda command_id, user_id: {
+            "query": "credits",
+            "enough_context": True,
+            "answer": "Yes",
+            "citations": ["FAQ"],
+            "no_answer_reason": None,
+            "chunk_ids": ["chunk-1"],
+            "user_id": user_id,
+            "created_at": "2026-10-05T00:00:00+00:00",
+        },
+    )
 
     result = worker.handle_command(
         {
@@ -56,6 +76,26 @@ def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
             "chunk_ids": ["c1"],
             "user_id": user_id,
         },
+    )
+    monkeypatch.setattr(
+        worker,
+        "list_ask_messages_for_ticket",
+        lambda command_id, user_id: [
+            {
+                "id": "m1",
+                "author_type": "user",
+                "author_id": user_id,
+                "body": "How?",
+                "created_at": "2026-10-05T00:00:00+00:00",
+            },
+            {
+                "id": "m2",
+                "author_type": "system",
+                "author_id": None,
+                "body": "Saved answer\n\nSources: Help",
+                "created_at": "2026-10-05T00:00:01+00:00",
+            },
+        ],
     )
     persisted: dict = {}
     monkeypatch.setattr(
@@ -94,6 +134,7 @@ def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
 
 
 def test_mark_ask_resolved_returns_payload(monkeypatch) -> None:
+    monkeypatch.setattr(worker, "list_ask_messages", lambda command_id: [])
     monkeypatch.setattr(
         worker,
         "mark_rag_run_confirmed",

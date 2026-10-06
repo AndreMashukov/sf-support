@@ -33,6 +33,25 @@ def materialize_ask_result(sot: dict[str, Any]) -> None:
     prior = cast(dict[str, Any], existing) if existing else {}
     doc["createdAt"] = prior.get("createdAt") or sot.get("created_at")
     set_doc(ASK_RESULTS_LEAN, command_id, doc)
+    for message in sot.get("messages") or []:
+        if not isinstance(message, dict):
+            continue
+        message_id = str(message.get("id") or "")
+        if not message_id:
+            continue
+        set_subdoc(
+            ASK_RESULTS_LEAN,
+            command_id,
+            MESSAGES,
+            message_id,
+            {
+                "authorType": message.get("author_type"),
+                "authorId": message.get("author_id"),
+                "body": message.get("body"),
+                "createdAt": message.get("created_at"),
+                "write_id": write_id,
+            },
+        )
 
 
 def materialize_ticket(sot: dict[str, Any]) -> None:

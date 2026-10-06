@@ -35,6 +35,7 @@ def ask_completed_payload(
     resolved_at: str | None = None,
     ticket_id: str | None = None,
     created_at: str | None = None,
+    messages: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "v": 1,
@@ -52,6 +53,7 @@ def ask_completed_payload(
         "resolved_at": resolved_at,
         "ticket_id": ticket_id,
         "created_at": created_at,
+        "messages": messages or [],
     }
 
 

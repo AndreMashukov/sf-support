@@ -1,19 +1,18 @@
-"""Eventarc HTTP publisher: Firestore commands and Datastream GCS ticket CDC."""
+"""Eventarc HTTP publisher: Datastream GCS ticket CDC only.
+
+Command docs stay in StudyForge. supportCommandCdc publishes command.submitted.
+This service does not read Firestore.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
-from urllib.parse import unquote
 
 from fastapi import APIRouter, Request, Response
 
 from app.settings import settings
-from app.support_bus.bus import publish_event
-from app.support_bus.collections import COMMANDS
 from app.support_bus.datastream import parse_datastream_object
-from app.support_bus.events import command_submitted_payload, parse_document_path
-from app.support_bus.firestore_io import get_doc, should_ignore_collection
 from app.support_bus.ticket_publish import publish_ticket_from_postgres
 
 logger = logging.getLogger(__name__)
@@ -28,32 +27,7 @@ async def eventarc_publish(request: Request) -> Response:
     ce_type = request.headers.get("ce-type") or ""
     if GCS_FINALIZED in ce_type:
         return await _handle_gcs_finalized(request)
-    return await _handle_firestore_command(request)
-
-
-async def _handle_firestore_command(request: Request) -> Response:
-    subject = (
-        request.headers.get("ce-subject") or request.headers.get("ce-document") or ""
-    )
-    parsed = parse_document_path(unquote(subject))
-    if parsed is None:
-        return Response(status_code=204)
-    collection, doc_id = parsed
-    if should_ignore_collection(collection) or collection != COMMANDS:
-        return Response(status_code=204)
-    doc = get_doc(collection, doc_id)
-    if doc is None:
-        return Response(status_code=500)
-    payload = command_submitted_payload(doc_id, doc)
-    message_id = publish_event(payload)
-    if not message_id:
-        return Response(status_code=500)
-    logger.info(
-        "eventarc.publish %s %s message_id=%s",
-        payload.get("event_type"),
-        doc_id,
-        message_id,
-    )
+    logger.info("Ignore non-GCS Eventarc event; commands are published by StudyForge")
     return Response(status_code=204)
 
 

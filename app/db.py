@@ -92,3 +92,9 @@ def ensure_schema() -> None:
                 "ON rag_runs (command_id) WHERE command_id IS NOT NULL"
             )
         )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_ask_messages_command_id "
+                "ON ask_messages (command_id)"
+            )
+        )

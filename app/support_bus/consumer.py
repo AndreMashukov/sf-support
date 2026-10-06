@@ -1,4 +1,4 @@
-"""Pub/Sub push consumer: fetch the command, persist Postgres, publish domain events."""
+"""Pub/Sub push consumer: persist Postgres from the event body, publish domain events."""
 
 from __future__ import annotations
 
@@ -9,9 +9,6 @@ import logging
 from fastapi import APIRouter, Request, Response
 
 from app.support_bus.bus import publish_event
-from app.support_bus.collections import COMMANDS
-from app.support_bus.events import command_submitted_payload
-from app.support_bus.firestore_io import get_doc
 from app.support_bus.worker import handle_command
 
 logger = logging.getLogger(__name__)
@@ -34,16 +31,22 @@ async def pubsub_push(request: Request) -> Response:
     event_type = str(payload.get("event_type") or "")
     if event_type != "command.submitted":
         return Response(status_code=204)
+    command_id = str(payload.get("command_id") or "").strip()
+    command_type = str(payload.get("type") or "").strip()
+    if not command_id or not command_type:
+        logger.warning("command.submitted missing command_id or type")
+        return Response(status_code=204)
     try:
-        command_id = str(payload.get("command_id") or "")
-        doc = get_doc(COMMANDS, command_id) if command_id else None
-        if doc is None:
-            return Response(status_code=500)
-        event = command_submitted_payload(command_id, doc)
-        domain = handle_command(event)
+        domain = handle_command(payload)
         if domain is not None and not publish_event(domain):
             return Response(status_code=500)
+        logger.info(
+            "command.submitted handled %s type=%s domain=%s",
+            command_id,
+            command_type,
+            None if domain is None else domain.get("event_type"),
+        )
     except Exception:
-        logger.exception("pubsub push failed for %s", event_type)
+        logger.exception("pubsub push failed for %s", command_id)
         return Response(status_code=500)
     return Response(status_code=204)

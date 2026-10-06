@@ -68,7 +68,7 @@ flowchart LR
   graph --> ls
 ```
 
-The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. StudyForge `supportCommandCdc` publishes `command.submitted`. sfs `/pubsub/push` runs commands and persists Postgres. Ticket changes reach the bus through Datastream CDC (prod) or a local `write_id` poller. sfs `/__eventarc/publish` publishes `ticket.updated` from Postgres. StudyForge functions write lean Firestore. Local emulator may poll with `LOCAL_CDC_SHORTCUT`.
+The support app does **not** call StudyForge Firebase Functions for tickets. Users do not `fetch` sfs. StudyForge `supportCommandCdc` publishes `command.submitted` with the full command body. sfs `/pubsub/push` runs that body and persists Postgres. It does not read or write Firestore. Ticket changes reach the bus through Datastream CDC (prod) or a local `write_id` poller. sfs `/__eventarc/publish` publishes `ticket.updated` from Postgres only. StudyForge functions write lean Firestore.
 
 ## User flows
 

@@ -37,7 +37,7 @@ Published markdown used for hybrid search. Seeded from curated files or written 
 _Avoid_: knowledge base (alone), RAG doc, platform agent knowledge (that term belongs to StudyForge)
 
 **Support command**:
-A create-only Firestore inbox doc (`supportCommands/{id}`) from the StudyForge web app. `supportCommandCdc` turns it into `command.submitted` on the bus. The client does not write tickets.
+A create-only Firestore inbox doc (`supportCommands/{id}`) from the StudyForge web app. `supportCommandCdc` publishes `command.submitted` with the full payload. sf-support consumes that event and does not read Firestore.
 _Avoid_: ticket create API, webhook from web
 
 **Ticket SoT row**:

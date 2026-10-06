@@ -9,7 +9,7 @@ import sys
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.support_bus import bus, cdc, consumer, materialize, worker
+from app.support_bus import bus, consumer, materialize, worker
 from app.support_bus.collections import ASK_RESULTS_LEAN, ASK_SOT, COMMANDS
 
 
@@ -37,7 +37,7 @@ def main() -> int:
         set_calls.append((collection, doc_id))
         store[(collection, doc_id)] = dict(data)
 
-    worker.run_how_it_works = lambda query, user_id: {  # type: ignore[method-assign]
+    worker.run_how_it_works = lambda query, user_id, conversation=None: {  # type: ignore[method-assign]
         "enough_context": False,
         "answer": None,
         "citations": [],
@@ -45,36 +45,38 @@ def main() -> int:
         "user_id": user_id,
     }
     worker.persist_ask_run_from_result = lambda *args, **kwargs: None  # type: ignore[method-assign]
-    cdc.get_doc = get_doc  # type: ignore[method-assign]
-    consumer.get_doc = get_doc  # type: ignore[method-assign]
+    worker.append_ask_message = lambda **kwargs: None  # type: ignore[method-assign]
+    worker.list_ask_messages = lambda command_id: []  # type: ignore[method-assign]
+    worker.get_rag_run_for_user = lambda command_id, user_id: None  # type: ignore[method-assign]
     consumer.handle_command = worker.handle_command  # type: ignore[method-assign]
     materialize.get_doc = get_doc  # type: ignore[method-assign]
     materialize.set_doc = set_doc  # type: ignore[method-assign]
     bus.reset_memory()
 
     command_id = "11111111-1111-1111-1111-111111111111"
-    store[(COMMANDS, command_id)] = {
-        "type": "AskHowItWorks",
-        "userId": "user-1",
-        "userEmail": "user@example.com",
+    submitted = {
+        "v": 1,
+        "event_type": "command.submitted",
         "write_id": "w-cmd",
+        "command_id": command_id,
+        "type": "AskHowItWorks",
+        "user_id": "user-1",
+        "user_email": "user@example.com",
         "payload": {"query": "How do credits work?"},
     }
 
     client = TestClient(app)
-    print("1. CDC POST /__eventarc/publish supportCommands")
+    print("1. Eventarc Firestore subject is a no-op")
     r1 = client.post(
         "/__eventarc/publish",
         headers={"ce-subject": f"documents/{COMMANDS}/{command_id}"},
     )
-    print(f"   status={r1.status_code}")
-    msgs = bus.memory_messages()
-    print(f"   published={msgs[0]['payload']['event_type'] if msgs else None}")
-    if r1.status_code != 204 or not msgs:
+    print(f"   status={r1.status_code} published={len(bus.memory_messages())}")
+    if r1.status_code != 204 or bus.memory_messages():
         return 1
 
     print("2. Pub/Sub POST /pubsub/push command.submitted")
-    r2 = client.post("/pubsub/push", json=_envelope(msgs[0]["payload"]))
+    r2 = client.post("/pubsub/push", json=_envelope(submitted))
     print(f"   status={r2.status_code}")
     print(f"   sot_written={ (ASK_SOT, command_id) in store }")
     domain = bus.memory_messages()

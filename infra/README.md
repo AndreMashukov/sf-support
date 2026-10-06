@@ -31,6 +31,6 @@ StudyForge Firebase Functions:
 - `supportLeanProject` writes `supportAskResults` from `ask.completed`
 - `supportTicketLeanProject` writes `supportTickets` from `ticket.updated`
 
-Local emulator uses `LOCAL_CDC_SHORTCUT=true` (polls `supportCommands` and `tickets.write_id`). Production Cloud Run should use `SUPPORT_EVENTS_BACKEND=pubsub`, `LOCAL_CDC_SHORTCUT=false`, and `SUPPORT_CDC_GCS_BUCKET` set to the Terraform output bucket.
+Local emulator uses `LOCAL_CDC_SHORTCUT=true` (polls `tickets.write_id` only). Commands arrive on Pub/Sub. Production Cloud Run should use `SUPPORT_EVENTS_BACKEND=pubsub`, `LOCAL_CDC_SHORTCUT=false`, and `SUPPORT_CDC_GCS_BUCKET` set to the Terraform output bucket. sf-support does not read Firestore.
 
 Review notes for the Datastream Terraform Critical comments: [docs/pr-1-critical-comments.md](../docs/pr-1-critical-comments.md).

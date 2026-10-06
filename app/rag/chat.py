@@ -124,7 +124,27 @@ def _format_chunks_for_prompt(chunks: list[dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
-def grade_context(query: str, chunks: list[dict[str, Any]]) -> tuple[bool, str]:
+def _format_conversation(conversation: list[dict[str, Any]] | None) -> str:
+    if not conversation:
+        return ""
+    lines: list[str] = []
+    for turn in conversation:
+        role = str(turn.get("role") or "")
+        content = str(turn.get("content") or "").strip()
+        if not content:
+            continue
+        if role == "user":
+            lines.append(f"User: {content}")
+        elif role == "assistant":
+            lines.append(f"Assistant: {content}")
+    return "\n".join(lines)
+
+
+def grade_context(
+    query: str,
+    chunks: list[dict[str, Any]],
+    conversation: list[dict[str, Any]] | None = None,
+) -> tuple[bool, str]:
     if not chat_configured():
         raise RuntimeError("TOGETHER_AI_API_KEY is not set")
     allowed_titles = _allowed_titles(chunks)
@@ -135,8 +155,11 @@ def grade_context(query: str, chunks: list[dict[str, Any]]) -> tuple[bool, str]:
         "numbers unless they appear in the excerpts. "
         "The reason is an internal log note and is not shown to the user."
     )
+    history = _format_conversation(conversation)
+    history_block = f"Prior conversation:\n{history}\n\n" if history else ""
     human = (
-        f"Question:\n{query}\n\n"
+        f"{history_block}"
+        f"Current question:\n{query}\n\n"
         f"Chunks:\n{_format_chunks_for_prompt(chunks)}\n\n"
         f"Allowed citation titles (for reference only): {', '.join(allowed_titles)}"
     )
@@ -160,6 +183,7 @@ def grade_context(query: str, chunks: list[dict[str, Any]]) -> tuple[bool, str]:
 def generate_cited_answer(
     query: str,
     chunks: list[dict[str, Any]],
+    conversation: list[dict[str, Any]] | None = None,
 ) -> tuple[str, list[str]]:
     if not chat_configured():
         raise RuntimeError("TOGETHER_AI_API_KEY is not set")
@@ -174,8 +198,11 @@ def generate_cited_answer(
         "citation_titles must be a subset of the allowed titles list and only "
         "include titles you actually used."
     )
+    history = _format_conversation(conversation)
+    history_block = f"Prior conversation:\n{history}\n\n" if history else ""
     human = (
-        f"Question:\n{query}\n\n"
+        f"{history_block}"
+        f"Current question:\n{query}\n\n"
         f"Help excerpts (internal, do not mention them):\n"
         f"{_format_chunks_for_prompt(chunks)}\n\n"
         f"Allowed citation titles: {json.dumps(allowed)}"

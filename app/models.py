@@ -143,6 +143,21 @@ class Message(Base):
     ticket: Mapped[Ticket] = relationship(back_populates="messages")
 
 
+class AskMessage(Base):
+    __tablename__ = "ask_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    command_id: Mapped[str] = mapped_column(String(64), index=True)
+    author_type: Mapped[AuthorType] = mapped_column(Enum(AuthorType))
+    author_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class RagRun(Base):
     __tablename__ = "rag_runs"
 

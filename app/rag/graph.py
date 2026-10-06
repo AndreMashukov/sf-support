@@ -22,6 +22,7 @@ DEFAULT_NO_ANSWER = "I do not have that in the help articles."
 class HowItWorksState(TypedDict, total=False):
     query: str
     user_id: str
+    conversation: list[dict]
     chunks: list[dict]
     enough_context: bool
     answer: str | None
@@ -69,7 +70,9 @@ def _grade_context(state: HowItWorksState) -> dict:
             "no_answer_reason": DEFAULT_NO_ANSWER,
         }
     try:
-        enough, reason = rag_chat.grade_context(query, chunks)
+        enough, reason = rag_chat.grade_context(
+            query, chunks, state.get("conversation")
+        )
     except Exception:
         return {
             "enough_context": False,
@@ -96,7 +99,9 @@ def _generate_cited(state: HowItWorksState) -> dict:
     chunks = state.get("chunks") or []
     query = state["query"]
     try:
-        answer, citations = rag_chat.generate_cited_answer(query, chunks)
+        answer, citations = rag_chat.generate_cited_answer(
+            query, chunks, state.get("conversation")
+        )
     except Exception:
         return {
             "enough_context": False,
@@ -169,13 +174,18 @@ def _state_to_result(state: HowItWorksState) -> dict:
     }
 
 
-def run_how_it_works(query: str, user_id: str) -> dict:
+def run_how_it_works(
+    query: str,
+    user_id: str,
+    conversation: list[dict] | None = None,
+) -> dict:
     _ensure_langsmith_project()
     graph = get_graph()
     final = graph.invoke(
         {
             "query": query,
             "user_id": user_id,
+            "conversation": conversation or [],
             "chunks": [],
             "enough_context": False,
             "answer": None,
