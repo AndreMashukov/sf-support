@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.rag.graph import run_how_it_works
+from app.support_bus.bus import publish_event
 from app.support_bus.events import ask_completed_payload, new_write_id
 from app.support_bus.postgres_copy import (
     get_rag_run_for_user,
@@ -52,6 +53,21 @@ def _rag_body_from_result(result: dict[str, Any]) -> str:
     return str(
         result.get("no_answer_reason") or "I do not have that in the help articles."
     )
+
+
+def _publish_ask_update(ask_command_id: str, user_id: str, query: str) -> None:
+    result = get_rag_run_for_user(ask_command_id, user_id)
+    if result is None:
+        return
+    payload = _ask_payload_from_result_dict(
+        command_id=ask_command_id,
+        write_id=new_write_id(),
+        user_id=user_id,
+        query=query or str(result.get("query") or ""),
+        result=result,
+    )
+    if not publish_event(payload):
+        logger.warning("Failed to publish ask.completed for %s", ask_command_id)
 
 
 def _ask_payload_from_result_dict(
@@ -186,7 +202,8 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
             messages=messages,
             write_id=write_id,
         )
-        link_rag_run_escalated(ask_command_id, user_id, ticket_id)
+        if link_rag_run_escalated(ask_command_id, user_id, ticket_id):
+            _publish_ask_update(ask_command_id, user_id, query)
         return
 
     persist_ticket(

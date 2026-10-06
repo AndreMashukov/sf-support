@@ -63,7 +63,11 @@ def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
         "persist_ticket",
         lambda **kwargs: persisted.update(kwargs),
     )
+    published: list[dict] = []
     monkeypatch.setattr(worker, "link_rag_run_escalated", lambda *args: True)
+    monkeypatch.setattr(
+        worker, "publish_event", lambda payload: published.append(payload) or True
+    )
 
     worker.handle_command(
         {
@@ -84,6 +88,9 @@ def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
     assert persisted["messages"][0]["author_type"] == "user"
     assert persisted["messages"][1]["author_type"] == "system"
     assert "Saved answer" in persisted["messages"][1]["body"]
+    assert len(published) == 1
+    assert published[0]["event_type"] == "ask.completed"
+    assert published[0]["command_id"] == "ask-1"
 
 
 def test_mark_ask_resolved_returns_payload(monkeypatch) -> None:
