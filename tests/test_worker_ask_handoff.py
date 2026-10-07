@@ -68,50 +68,16 @@ def test_handle_ask_persists_full_result(monkeypatch) -> None:
     assert result.get("created_at")
 
 
-def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
+def test_create_ticket_with_ask_command_id_is_rejected(monkeypatch) -> None:
     graph = MagicMock()
     monkeypatch.setattr(worker, "run_how_it_works", graph)
-    monkeypatch.setattr(
-        worker,
-        "get_rag_run_for_user",
-        lambda command_id, user_id: {
-            "query": "How?",
-            "enough_context": True,
-            "answer": "Saved answer",
-            "citations": ["Help"],
-            "no_answer_reason": None,
-            "chunk_ids": ["c1"],
-            "user_id": user_id,
-        },
-    )
-    monkeypatch.setattr(
-        worker,
-        "list_ask_messages_for_ticket",
-        lambda command_id, user_id: [
-            {
-                "id": "m1",
-                "author_type": "user",
-                "author_id": user_id,
-                "body": "How?",
-                "created_at": "2026-10-05T00:00:00+00:00",
-            },
-            {
-                "id": "m2",
-                "author_type": "system",
-                "author_id": None,
-                "body": "Saved answer\n\nSources: Help",
-                "created_at": "2026-10-05T00:00:01+00:00",
-            },
-        ],
-    )
     persisted: dict = {}
     monkeypatch.setattr(
         worker,
         "persist_ticket",
-        lambda **kwargs: persisted.update(kwargs),
+        lambda **kwargs: persisted.update(kwargs) or True,
     )
     published: list[dict] = []
-    monkeypatch.setattr(worker, "link_rag_run_escalated", lambda *args: True)
     monkeypatch.setattr(
         worker, "publish_event", lambda payload: published.append(payload) or True
     )
@@ -131,13 +97,8 @@ def test_create_ticket_with_ask_command_id_skips_graph(monkeypatch) -> None:
     )
 
     graph.assert_not_called()
-    assert len(persisted["messages"]) == 2
-    assert persisted["messages"][0]["author_type"] == "user"
-    assert persisted["messages"][1]["author_type"] == "system"
-    assert "Saved answer" in persisted["messages"][1]["body"]
-    assert len(published) == 1
-    assert published[0]["event_type"] == "ask.completed"
-    assert published[0]["command_id"] == "ask-1"
+    assert persisted == {}
+    assert published == []
 
 
 def test_complete_ask_turn_fails_when_message_append_fails(monkeypatch) -> None:

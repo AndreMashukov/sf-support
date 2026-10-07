@@ -14,9 +14,7 @@ from app.support_bus.postgres_copy import (
     get_rag_run_for_user,
     get_ticket_category,
     is_ask_thread_closed,
-    link_rag_run_escalated,
     list_ask_messages,
-    list_ask_messages_for_ticket,
     mark_rag_run_confirmed,
     persist_ask_run_from_result,
     persist_ticket,
@@ -263,50 +261,13 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
     write_id = new_write_id()
     now = _iso()
 
-    if category == "how_it_works" and ask_command_id:
-        snapshot = get_rag_run_for_user(ask_command_id, user_id)
-        if snapshot is None:
-            logger.warning(
-                "CreateTicket rejected: missing rag_run for ask %s", ask_command_id
-            )
-            return
-        title = str(snapshot.get("query") or query)[:300] or "Support ticket"
-        thread = list_ask_messages_for_ticket(ask_command_id, user_id)
-        messages: list[dict[str, Any]] = []
-        for item in thread:
-            messages.append(
-                {
-                    "id": str(item.get("id") or uuid.uuid4()),
-                    "author_type": str(item.get("author_type") or "user"),
-                    "author_id": item.get("author_id"),
-                    "body": str(item.get("body") or ""),
-                    "created_at": item.get("created_at") or now,
-                    "write_id": write_id,
-                }
-            )
-        if not messages and query:
-            messages = [
-                {
-                    "id": str(uuid.uuid4()),
-                    "author_type": "user",
-                    "author_id": user_id,
-                    "body": query,
-                    "created_at": now,
-                    "write_id": write_id,
-                }
-            ]
-        persist_ticket(
-            ticket_id=ticket_id,
-            user_id=user_id,
-            user_email=user_email,
-            category=category,
-            title=title,
-            url=str(url) if url else None,
-            messages=messages,
-            write_id=write_id,
+    if category == "how_it_works" or ask_command_id:
+        logger.warning(
+            "CreateTicket rejected: how_it_works and ask-linked tickets are disabled "
+            "(category=%s, askCommandId=%s)",
+            category,
+            ask_command_id or None,
         )
-        if link_rag_run_escalated(ask_command_id, user_id, ticket_id):
-            _publish_ask_update(ask_command_id, user_id, title)
         return
 
     title = query[:300] or "Support ticket"
@@ -330,8 +291,6 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
         messages=messages,
         write_id=write_id,
     )
-    if category == "how_it_works" and query:
-        _append_rag_reply(ticket_id=str(ticket_id), user_id=user_id, query=query)
 
 
 def _handle_append_message(event: dict[str, Any]) -> None:
