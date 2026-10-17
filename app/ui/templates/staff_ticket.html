@@ -1,40 +1,83 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="bg-black text-white">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Staff ticket</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              card: "#111111",
+              line: "#27272a",
+              primary: "#8b5cf6",
+              accent: "#22c55e",
+            },
+          },
+        },
+      };
+    </script>
   </head>
-  <body>
-    <h1>Staff ticket</h1>
-    <p><a href="/staff">Staff home</a></p>
-    <p id="ticket-status">Sign in to load this ticket.</p>
-    <section id="snapshot" hidden>
-      <h2>Account snapshot</h2>
-      <pre id="snapshot-body"></pre>
-    </section>
-    <section id="articles" hidden>
-      <h2>Article titles</h2>
-      <ul id="article-list"></ul>
-    </section>
-    <section id="draft" hidden>
-      <h2>Suggested reply</h2>
-      <p id="no-draft" hidden>No draft.</p>
-      <form id="reply-form">
-        <p>
-          <textarea id="reply-body" name="body" rows="10" cols="80" required></textarea>
-        </p>
-        <p><button type="submit">Post</button></p>
-      </form>
-      <p id="post-status"></p>
-    </section>
-    {% include "partials/firebase_auth.html" %}
+  <body class="min-h-screen bg-black text-white">
+    <header class="border-b border-line px-6 py-4 flex items-center justify-between">
+      <div>
+        <p class="text-xs uppercase tracking-wide text-zinc-500">StudyForge Support</p>
+        <h1 class="text-xl font-semibold" id="ticket-title">Staff ticket</h1>
+      </div>
+      <a class="text-sm text-primary" href="/staff">Queue</a>
+    </header>
+    <main class="max-w-5xl mx-auto px-6 py-8 grid gap-6 lg:grid-cols-2">
+      <section class="rounded-xl border border-line bg-card p-4 lg:col-span-2">
+        {% include "partials/firebase_auth.html" %}
+        <p id="ticket-status" class="mt-3 text-sm text-zinc-400">Sign in to load this ticket.</p>
+      </section>
+      <section class="rounded-xl border border-line bg-card p-4" id="graph" hidden>
+        <h2 class="text-sm font-medium text-zinc-300">Copilot graph</h2>
+        <p id="graph-label" class="mt-1 text-sm text-primary"></p>
+        <ol id="graph-steps" class="mt-4 space-y-2"></ol>
+        <p id="langsmith" class="mt-4 text-xs text-zinc-500"></p>
+      </section>
+      <section class="rounded-xl border border-line bg-card p-4 space-y-4" id="facts" hidden>
+        <div>
+          <h2 class="text-sm font-medium text-zinc-300">Account snapshot</h2>
+          <pre id="snapshot-body" class="mt-2 text-xs text-zinc-300 whitespace-pre-wrap"></pre>
+        </div>
+        <div>
+          <h2 class="text-sm font-medium text-zinc-300">Article titles</h2>
+          <ul id="article-list" class="mt-2 text-sm text-zinc-300 list-disc pl-5"></ul>
+        </div>
+      </section>
+      <section class="rounded-xl border border-line bg-card p-4 lg:col-span-2" id="draft" hidden>
+        <h2 class="text-sm font-medium text-zinc-300">Suggested reply</h2>
+        <p id="no-draft" class="mt-2 text-sm text-zinc-500" hidden>No draft.</p>
+        <form id="reply-form" class="mt-3 space-y-3">
+          <textarea
+            id="reply-body"
+            name="body"
+            rows="8"
+            required
+            class="w-full rounded-lg border border-line bg-black px-3 py-2 text-sm"
+          ></textarea>
+          <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-medium">
+            Post to user
+          </button>
+        </form>
+        <p id="post-status" class="mt-2 text-sm text-zinc-400"></p>
+      </section>
+    </main>
     <script>
       const ticketId = {{ ticket_id | tojson }};
+      const stepTone = {
+        done: "border-accent text-accent",
+        skipped: "border-zinc-600 text-zinc-400",
+        failed: "border-red-500 text-red-400",
+        waiting: "border-zinc-700 text-zinc-500",
+      };
 
       function showSnapshot(context) {
-        const section = document.getElementById("snapshot");
         const body = document.getElementById("snapshot-body");
-        section.hidden = false;
         if (!context || context.snapshot_missing || !context.snapshot) {
           body.textContent = "snapshot missing";
           return;
@@ -43,9 +86,7 @@
       }
 
       function showArticles(titles) {
-        const section = document.getElementById("articles");
         const list = document.getElementById("article-list");
-        section.hidden = false;
         list.replaceChildren();
         const names = Array.isArray(titles) ? titles : [];
         if (!names.length) {
@@ -61,11 +102,29 @@
         }
       }
 
+      function showGraph(progress) {
+        const section = document.getElementById("graph");
+        section.hidden = false;
+        document.getElementById("graph-label").textContent =
+          (progress && progress.label) || "Pending";
+        const steps = document.getElementById("graph-steps");
+        steps.replaceChildren();
+        for (const step of (progress && progress.steps) || []) {
+          const item = document.createElement("li");
+          const tone = stepTone[step.status] || stepTone.waiting;
+          item.className = "rounded-lg border px-3 py-2 text-sm " + tone;
+          item.textContent = step.label + (step.detail ? " — " + step.detail : "");
+          steps.appendChild(item);
+        }
+        const runId = progress && progress.langsmith_run_id;
+        document.getElementById("langsmith").textContent = runId
+          ? "LangSmith run " + runId
+          : "No LangSmith run id on this ticket.";
+      }
+
       async function loadTicket() {
         const token = window.__sfsToken;
-        if (!token) {
-          return;
-        }
+        if (!token) return;
         const response = await fetch("/api/tickets/" + ticketId, {
           headers: { Authorization: "Bearer " + token },
         });
@@ -75,10 +134,12 @@
           status.textContent = payload.detail || "Could not load ticket";
           return;
         }
-        status.textContent = payload.title || ticketId;
-        const context = payload.staff_context || {};
-        showSnapshot(context);
-        showArticles(context.article_titles);
+        status.textContent = payload.category + " · " + payload.status;
+        document.getElementById("ticket-title").textContent = payload.title || "Staff ticket";
+        showGraph(payload.progress);
+        document.getElementById("facts").hidden = false;
+        showSnapshot(payload.staff_context || {});
+        showArticles((payload.staff_context || {}).article_titles);
         const draft = document.getElementById("draft");
         const noDraft = document.getElementById("no-draft");
         const reply = document.getElementById("reply-body");
@@ -117,9 +178,7 @@
           body: JSON.stringify({ body }),
         });
         const payload = await response.json().catch(() => ({}));
-        postStatus.textContent = response.ok
-          ? "Posted"
-          : payload.detail || "Post failed";
+        postStatus.textContent = response.ok ? "Posted" : payload.detail || "Post failed";
       });
     </script>
   </body>

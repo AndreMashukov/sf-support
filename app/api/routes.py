@@ -11,7 +11,11 @@ from app.models import Article, TicketCategory
 from app.rag.graph import run_how_it_works
 from app.rag.index import reindex_article
 from app.support_bus.events import new_write_id
-from app.support_bus.postgres_copy import get_ticket_for_staff, persist_ticket_message
+from app.support_bus.postgres_copy import (
+    get_ticket_for_staff,
+    list_staff_tickets,
+    persist_ticket_message,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -54,11 +58,12 @@ def list_tickets(
     principal: PrincipalDep,
     status: Literal["open", "closed"] | None = None,
 ) -> dict:
-    return {
-        "items": [],
-        "scope": "all" if principal.is_staff else "own",
-        "status": status,
-    }
+    if not principal.is_staff:
+        return {"items": [], "scope": "own", "status": status}
+    items = list_staff_tickets()
+    if status is not None:
+        items = [item for item in items if item.get("status") == status]
+    return {"items": items, "scope": "all", "status": status}
 
 
 @router.get("/tickets/{ticket_id}")

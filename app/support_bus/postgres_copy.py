@@ -20,6 +20,7 @@ from app.models import (
     TicketCategory,
     TicketStatus,
 )
+from app.support_bus.copilot_progress import copilot_progress
 
 logger = logging.getLogger(__name__)
 
@@ -573,6 +574,46 @@ def save_ticket_copilot(
         return False
 
 
+def list_staff_tickets(*, limit: int = 40) -> list[dict[str, Any]]:
+    try:
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(Ticket)
+                .order_by(Ticket.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            items = []
+            for ticket in rows:
+                context = ticket.staff_context
+                if not isinstance(context, dict):
+                    context = None
+                progress = copilot_progress(context, ticket.suggested_reply)
+                items.append(
+                    {
+                        "id": str(ticket.id),
+                        "title": ticket.title,
+                        "category": ticket.category.value,
+                        "status": ticket.status.value,
+                        "user_email": ticket.user_email,
+                        "created_at": (
+                            ticket.created_at.isoformat() if ticket.created_at else None
+                        ),
+                        "progress": progress,
+                    }
+                )
+            return items
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip staff ticket list: Postgres is not available")
+        return []
+    except Exception:
+        logger.exception("Skip staff ticket list")
+        return []
+
+
 def get_ticket_for_staff(ticket_id: str) -> dict[str, Any] | None:
     try:
         db = SessionLocal()
@@ -592,6 +633,7 @@ def get_ticket_for_staff(ticket_id: str) -> dict[str, Any] | None:
                 "staff_context": context,
                 "suggested_reply": ticket.suggested_reply,
                 "suggested_citations": list(ticket.suggested_citations or []),
+                "progress": copilot_progress(context or None, ticket.suggested_reply),
             }
         finally:
             db.close()

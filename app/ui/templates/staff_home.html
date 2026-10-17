@@ -1,16 +1,102 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="bg-black text-white">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Staff queue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              card: "#111111",
+              line: "#27272a",
+              primary: "#8b5cf6",
+              accent: "#22c55e",
+            },
+          },
+        },
+      };
+    </script>
   </head>
-  <body>
-    <h1>Staff queue</h1>
-    <p>Requires Firebase custom claim role=admin. Queue is not wired yet.</p>
-    <p><a href="/">User home</a></p>
-    {% if studyforge_web_url %}
-    <p><a href="{{ studyforge_web_url }}">Back to StudyForge</a></p>
-    {% endif %}
-    {% include "partials/firebase_auth.html" %}
+  <body class="min-h-screen bg-black text-white">
+    <header class="border-b border-line px-6 py-4 flex items-center justify-between">
+      <div>
+        <p class="text-xs uppercase tracking-wide text-zinc-500">StudyForge Support</p>
+        <h1 class="text-xl font-semibold">Staff queue</h1>
+      </div>
+      {% if studyforge_web_url %}
+      <a class="text-sm text-primary" href="{{ studyforge_web_url }}">Back to StudyForge</a>
+      {% endif %}
+    </header>
+    <main class="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      <div class="rounded-xl border border-line bg-card p-4">
+        {% include "partials/firebase_auth.html" %}
+      </div>
+      <p id="queue-status" class="text-sm text-zinc-400">Sign in to load tickets.</p>
+      <ul id="queue" class="space-y-3"></ul>
+    </main>
+    <script>
+      const labels = {
+        pending: "bg-zinc-800 text-zinc-300",
+        draft: "bg-emerald-950 text-accent",
+        brief: "bg-violet-950 text-primary",
+        empty: "bg-zinc-800 text-zinc-300",
+        error: "bg-red-950 text-red-400",
+      };
+
+      function badge(progress) {
+        const state = progress && progress.state ? progress.state : "pending";
+        const label = progress && progress.label ? progress.label : "Pending";
+        const tone = labels[state] || labels.pending;
+        return '<span class="rounded-full px-2 py-0.5 text-xs ' + tone + '">' + label + "</span>";
+      }
+
+      function render(items) {
+        const list = document.getElementById("queue");
+        list.replaceChildren();
+        if (!items.length) {
+          document.getElementById("queue-status").textContent = "No tickets yet.";
+          return;
+        }
+        document.getElementById("queue-status").textContent = items.length + " latest tickets";
+        for (const item of items) {
+          const li = document.createElement("li");
+          const link = document.createElement("a");
+          link.href = "/staff/tickets/" + item.id;
+          link.className =
+            "block rounded-xl border border-line bg-card p-4 hover:border-primary";
+          link.innerHTML =
+            '<div class="flex items-start justify-between gap-4">' +
+            '<div><p class="font-medium">' +
+            (item.title || "Ticket") +
+            "</p><p class=\"text-sm text-zinc-400\">" +
+            item.category +
+            " · " +
+            item.status +
+            " · " +
+            (item.user_email || "") +
+            "</p></div>" +
+            badge(item.progress) +
+            "</div>";
+          li.appendChild(link);
+          list.appendChild(li);
+        }
+      }
+
+      document.addEventListener("sfs-ready", async () => {
+        const response = await fetch("/api/tickets", {
+          headers: { Authorization: "Bearer " + window.__sfsToken },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          document.getElementById("queue-status").textContent =
+            payload.detail || "Could not load tickets";
+          return;
+        }
+        render(payload.items || []);
+      });
+    </script>
   </body>
 </html>
