@@ -66,6 +66,7 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     monkeypatch.setattr(
         worker, "persist_ask_run_from_result", lambda *args, **kwargs: None
     )
+
     def fake_append(**kwargs):
         return {
             "id": "msg-" + str(kwargs.get("author_type")),
@@ -83,8 +84,10 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
 
     monkeypatch.setattr(worker, "append_ask_message", append_track)
     monkeypatch.setattr(worker, "list_ask_messages", lambda command_id: stored_messages)
-    monkeypatch.setattr(worker, "get_rag_run_for_user", lambda command_id, user_id: None)
-    monkeypatch.setattr(consumer, "handle_command", worker.handle_command)
+    monkeypatch.setattr(
+        worker, "get_rag_run_for_user", lambda command_id, user_id: None
+    )
+    monkeypatch.setattr(consumer, "handle_support_event", worker.handle_support_event)
     monkeypatch.setattr(materialize, "get_doc", get_doc)
     monkeypatch.setattr(materialize, "set_doc", set_doc)
     bus.reset_memory()
@@ -106,7 +109,9 @@ def test_command_to_ask_completed_without_firestore_writes(monkeypatch) -> None:
     assert (ASK_SOT, command_id) not in store
     domain = bus.memory_messages()
     assert domain[0]["payload"]["event_type"] == "ask.completed"
-    assert domain[0]["payload"]["no_answer_reason"] == "No help-article chunks retrieved."
+    assert (
+        domain[0]["payload"]["no_answer_reason"] == "No help-article chunks retrieved."
+    )
     assert set_calls == []
 
     materialize.materialize_ask_result(

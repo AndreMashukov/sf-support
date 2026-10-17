@@ -9,7 +9,7 @@ import logging
 from fastapi import APIRouter, Request, Response
 
 from app.support_bus.bus import publish_event
-from app.support_bus.worker import handle_command
+from app.support_bus.worker import handle_support_event
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,13 @@ async def pubsub_push(request: Request) -> Response:
     if not isinstance(payload, dict):
         return Response(status_code=400)
     event_type = str(payload.get("event_type") or "")
+    if event_type == "account.snapshot.updated":
+        try:
+            handle_support_event(payload)
+        except Exception:
+            logger.exception("account snapshot upsert failed")
+            return Response(status_code=500)
+        return Response(status_code=204)
     if event_type != "command.submitted":
         return Response(status_code=204)
     command_id = str(payload.get("command_id") or "").strip()
@@ -37,7 +44,7 @@ async def pubsub_push(request: Request) -> Response:
         logger.warning("command.submitted missing command_id or type")
         return Response(status_code=204)
     try:
-        domain = handle_command(payload)
+        domain = handle_support_event(payload)
         if domain is not None and not publish_event(domain):
             return Response(status_code=500)
         logger.info(

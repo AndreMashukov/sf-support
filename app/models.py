@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -122,7 +123,27 @@ class Ticket(Base):
     )
     closed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     write_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    staff_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    suggested_reply: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suggested_citations: Mapped[list | None] = mapped_column(JSON, nullable=True)
     messages: Mapped[list["Message"]] = relationship(back_populates="ticket")
+
+
+class AccountSnapshot(Base):
+    __tablename__ = "account_snapshots"
+
+    user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    subscription_status: Mapped[str] = mapped_column(String(64), default="")
+    billing_status: Mapped[str] = mapped_column(String(64), default="")
+    usage_limits_setup_id: Mapped[str] = mapped_column(String(128), default="")
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
+    pay_as_you_go_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    included_credits: Mapped[int] = mapped_column(Integer, default=0)
+    spent_credits: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Message(Base):

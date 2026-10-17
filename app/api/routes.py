@@ -1,5 +1,5 @@
 from typing import Annotated, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -10,6 +10,8 @@ from app.db import get_db
 from app.models import Article, TicketCategory
 from app.rag.graph import run_how_it_works
 from app.rag.index import reindex_article
+from app.support_bus.events import new_write_id
+from app.support_bus.postgres_copy import get_ticket_for_staff, persist_ticket_message
 
 router = APIRouter(prefix="/api")
 
@@ -60,13 +62,29 @@ def list_tickets(
 
 
 @router.get("/tickets/{ticket_id}")
-def get_ticket(ticket_id: UUID, _principal: PrincipalDep) -> dict:
-    return {"id": str(ticket_id), "detail": "Ticket get not implemented yet."}
+def get_ticket(ticket_id: UUID, _principal: StaffDep) -> dict:
+    ticket = get_ticket_for_staff(str(ticket_id))
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return ticket
 
 
 @router.post("/tickets/{ticket_id}/messages")
-def post_message(ticket_id: UUID, _body: MessageBody, _principal: PrincipalDep) -> dict:
-    return {"id": str(ticket_id), "detail": "Message post not implemented yet."}
+def post_message(ticket_id: UUID, body: MessageBody, principal: StaffDep) -> dict:
+    message_id = str(uuid4())
+    saved = persist_ticket_message(
+        ticket_id=str(ticket_id),
+        message={
+            "id": message_id,
+            "author_type": "staff",
+            "author_id": principal.user_id,
+            "body": body.body,
+            "write_id": new_write_id(),
+        },
+    )
+    if not saved:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return {"id": message_id, "ticket_id": str(ticket_id)}
 
 
 @router.post("/tickets/{ticket_id}/close")

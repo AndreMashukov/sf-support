@@ -75,6 +75,13 @@ def user_home(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/staff/tickets/{ticket_id}", response_class=HTMLResponse)
+def staff_ticket(request: Request, ticket_id: str) -> HTMLResponse:
+    context = page_context(require_staff=True)
+    context["ticket_id"] = ticket_id
+    return templates.TemplateResponse(request, "staff_ticket.html", context)
+
+
 @app.get("/staff", response_class=HTMLResponse)
 def staff_home(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(

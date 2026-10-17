@@ -30,6 +30,18 @@ _Avoid_: escalate, file anyway
 Messages on one **Ticket** from user, staff, or system (RAG draft). In-app only in v1.
 _Avoid_: email thread, chat
 
+**Account snapshot**:
+One Postgres row per Firebase UID. A StudyForge Firestore trigger publishes `account.snapshot.updated` when billing fields or monthly spent credits change. Plan status plus included and spent credits. No Stripe ids and no prices. The ticket graph reads this row and does not call StudyForge.
+_Avoid_: billing record, Stripe customer, live account lookup
+
+**Staff context**:
+Postgres fields on a bug or billing **Ticket**: the **Account snapshot** (or a missing flag), retrieved Help snippets, and article titles. Not a thread message. Omitted from the lean ticket the user reads.
+_Avoid_: internal note shown to the user, system message
+
+**Suggested reply**:
+A cited draft for **Staff**, stored on the bug or billing **Ticket**. Written only when Help chunks are enough. Staff edit it and post it as a staff message. Until that post, the user does not see it.
+_Avoid_: auto-reply, resolution, RAG answer to the user
+
 ## Knowledge
 
 **Help article**:
@@ -73,6 +85,10 @@ _Avoid_: agent (when meaning a human), admin (when meaning this app's staff UI)
 ## Relationships
 
 - A **Support user** may have many **Tickets**
+- A **Support user** has at most one **Account snapshot**
 - A **Ticket** has one category and many thread messages
+- A bug or billing **Ticket** has **Staff context** and an optional **Suggested reply**
+- A **Suggested reply** becomes a thread message only after **Staff** post it
 - A published **Help article** has many **Help chunks**
 - How-it-works RAG reads **Help chunks** only, never raw **Ticket** text
+- The ticket copilot grades **Help chunks** only. The **Account snapshot** is not retrieval context

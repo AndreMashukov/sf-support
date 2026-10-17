@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Staff ticket</title>
+  </head>
+  <body>
+    <h1>Staff ticket</h1>
+    <p><a href="/staff">Staff home</a></p>
+    <p id="ticket-status">Sign in to load this ticket.</p>
+    <section id="snapshot" hidden>
+      <h2>Account snapshot</h2>
+      <pre id="snapshot-body"></pre>
+    </section>
+    <section id="articles" hidden>
+      <h2>Article titles</h2>
+      <ul id="article-list"></ul>
+    </section>
+    <section id="draft" hidden>
+      <h2>Suggested reply</h2>
+      <p id="no-draft" hidden>No draft.</p>
+      <form id="reply-form">
+        <p>
+          <textarea id="reply-body" name="body" rows="10" cols="80" required></textarea>
+        </p>
+        <p><button type="submit">Post</button></p>
+      </form>
+      <p id="post-status"></p>
+    </section>
+    {% include "partials/firebase_auth.html" %}
+    <script>
+      const ticketId = {{ ticket_id | tojson }};
+
+      function showSnapshot(context) {
+        const section = document.getElementById("snapshot");
+        const body = document.getElementById("snapshot-body");
+        section.hidden = false;
+        if (!context || context.snapshot_missing || !context.snapshot) {
+          body.textContent = "snapshot missing";
+          return;
+        }
+        body.textContent = JSON.stringify(context.snapshot, null, 2);
+      }
+
+      function showArticles(titles) {
+        const section = document.getElementById("articles");
+        const list = document.getElementById("article-list");
+        section.hidden = false;
+        list.replaceChildren();
+        const names = Array.isArray(titles) ? titles : [];
+        if (!names.length) {
+          const item = document.createElement("li");
+          item.textContent = "None retrieved";
+          list.appendChild(item);
+          return;
+        }
+        for (const title of names) {
+          const item = document.createElement("li");
+          item.textContent = title;
+          list.appendChild(item);
+        }
+      }
+
+      async function loadTicket() {
+        const token = window.__sfsToken;
+        if (!token) {
+          return;
+        }
+        const response = await fetch("/api/tickets/" + ticketId, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const payload = await response.json().catch(() => ({}));
+        const status = document.getElementById("ticket-status");
+        if (!response.ok) {
+          status.textContent = payload.detail || "Could not load ticket";
+          return;
+        }
+        status.textContent = payload.title || ticketId;
+        const context = payload.staff_context || {};
+        showSnapshot(context);
+        showArticles(context.article_titles);
+        const draft = document.getElementById("draft");
+        const noDraft = document.getElementById("no-draft");
+        const reply = document.getElementById("reply-body");
+        draft.hidden = false;
+        if (payload.suggested_reply) {
+          reply.value = payload.suggested_reply;
+          noDraft.hidden = true;
+        } else {
+          reply.value = "";
+          noDraft.hidden = false;
+        }
+      }
+
+      document.addEventListener("sfs-ready", () => {
+        loadTicket().catch((err) => {
+          document.getElementById("ticket-status").textContent =
+            err instanceof Error ? err.message : "Could not load ticket";
+        });
+      });
+
+      document.getElementById("reply-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const token = window.__sfsToken;
+        const postStatus = document.getElementById("post-status");
+        if (!token) {
+          postStatus.textContent = "Sign in first";
+          return;
+        }
+        const body = document.getElementById("reply-body").value;
+        const response = await fetch("/api/tickets/" + ticketId + "/messages", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ body }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        postStatus.textContent = response.ok
+          ? "Posted"
+          : payload.detail || "Post failed";
+      });
+    </script>
+  </body>
+</html>

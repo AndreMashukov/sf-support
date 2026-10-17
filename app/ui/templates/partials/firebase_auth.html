@@ -78,18 +78,22 @@
     if (requireStaff && !body.is_staff) {
       throw new Error("Staff only. Sign in with an admin account (role: admin).");
     }
-    return body;
+    return { me: body, token };
   }
 
   onAuthStateChanged(auth, async (user) => {
     clearError();
     signOutEl.hidden = !user;
     if (!user) {
+      window.__sfsToken = "";
       statusEl.textContent = "Not signed in";
       return;
     }
     try {
-      const me = await loadMe(user);
+      const session = await loadMe(user);
+      const me = session.me;
+      window.__sfsToken = session.token;
+      document.dispatchEvent(new CustomEvent("sfs-ready"));
       statusEl.textContent =
         "Signed in as " + me.email + (me.is_staff ? " (staff)" : "");
     } catch (err) {

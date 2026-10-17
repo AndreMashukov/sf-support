@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import SessionLocal
 from app.models import (
+    AccountSnapshot,
     AskMessage,
     AskResolution,
     AuthorType,
@@ -206,9 +207,7 @@ def persist_ask_run_from_result(
     try:
         db = SessionLocal()
         try:
-            existing = (
-                db.query(RagRun).filter(RagRun.command_id == command_id).first()
-            )
+            existing = db.query(RagRun).filter(RagRun.command_id == command_id).first()
             if existing is not None:
                 return
             chunk_ids = result.get("chunk_ids") or []
@@ -342,13 +341,13 @@ def persist_ticket(
     url: str | None,
     messages: list[dict[str, Any]],
     write_id: str,
-) -> None:
+) -> bool:
     try:
         db = SessionLocal()
         try:
             existing = db.get(Ticket, ticket_id)
             if existing is not None:
-                return
+                return False
             ticket = Ticket(
                 id=ticket_id,
                 user_id=user_id,
@@ -371,14 +370,18 @@ def persist_ticket(
                     )
                 )
             db.commit()
+            return True
         except IntegrityError:
             db.rollback()
+            return False
         finally:
             db.close()
     except OperationalError:
         logger.warning("Skip ticket persist: Postgres is not available")
+        return False
     except Exception:
         logger.exception("Skip ticket persist")
+        return False
 
 
 def get_ticket_category(ticket_id: str) -> str | None:
@@ -432,3 +435,166 @@ def persist_ticket_message(*, ticket_id: str, message: dict[str, Any]) -> bool:
     except Exception:
         logger.exception("Skip ticket message persist")
         return False
+
+
+def _parse_event_time(value: str) -> datetime | None:
+    text = value.strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def _as_int(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return value
+
+
+def upsert_account_snapshot(payload: dict[str, Any]) -> bool:
+    user_id = str(payload.get("user_id") or "").strip()
+    updated_at = _parse_event_time(str(payload.get("updated_at") or ""))
+    if not user_id or updated_at is None:
+        return False
+    period_end = payload.get("current_period_end")
+    period_dt = (
+        _parse_event_time(str(period_end))
+        if isinstance(period_end, str) and period_end.strip()
+        else None
+    )
+    db = SessionLocal()
+    try:
+        row = db.get(AccountSnapshot, user_id)
+        if row is not None and row.updated_at is not None:
+            stored = row.updated_at
+            if stored.tzinfo is None:
+                stored = stored.replace(tzinfo=UTC)
+            if stored >= updated_at:
+                return False
+        if row is None:
+            row = AccountSnapshot(user_id=user_id, updated_at=updated_at)
+            db.add(row)
+        row.subscription_status = str(payload.get("subscription_status") or "")
+        row.billing_status = str(payload.get("billing_status") or "")
+        row.usage_limits_setup_id = str(payload.get("usage_limits_setup_id") or "")
+        row.current_period_end = period_dt
+        row.cancel_at_period_end = bool(payload.get("cancel_at_period_end"))
+        row.pay_as_you_go_enabled = bool(payload.get("pay_as_you_go_enabled"))
+        row.included_credits = _as_int(payload.get("included_credits"))
+        row.spent_credits = _as_int(payload.get("spent_credits"))
+        row.updated_at = updated_at
+        db.commit()
+        return True
+    finally:
+        db.close()
+
+
+def get_account_snapshot(user_id: str) -> dict[str, Any] | None:
+    if not user_id:
+        return None
+    try:
+        db = SessionLocal()
+        try:
+            row = db.get(AccountSnapshot, user_id)
+            if row is None:
+                return None
+            return {
+                "subscription_status": row.subscription_status,
+                "billing_status": row.billing_status,
+                "usage_limits_setup_id": row.usage_limits_setup_id,
+                "current_period_end": (
+                    row.current_period_end.isoformat()
+                    if row.current_period_end
+                    else None
+                ),
+                "cancel_at_period_end": bool(row.cancel_at_period_end),
+                "pay_as_you_go_enabled": bool(row.pay_as_you_go_enabled),
+                "included_credits": int(row.included_credits),
+                "spent_credits": int(row.spent_credits),
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+            }
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip account snapshot read: Postgres is not available")
+        return None
+    except Exception:
+        logger.exception("Skip account snapshot read")
+        return None
+
+
+def ticket_copilot_already_ran(ticket_id: str) -> bool:
+    try:
+        db = SessionLocal()
+        try:
+            ticket = db.get(Ticket, uuid.UUID(ticket_id))
+            if ticket is None:
+                return True
+            return ticket.staff_context is not None
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("Skip copilot guard for %s", ticket_id)
+        return True
+
+
+def save_ticket_copilot(
+    *,
+    ticket_id: str,
+    staff_context: dict[str, Any],
+    suggested_reply: str | None,
+    suggested_citations: list[str] | None,
+) -> bool:
+    try:
+        db = SessionLocal()
+        try:
+            ticket = db.get(Ticket, uuid.UUID(ticket_id))
+            if ticket is None or ticket.staff_context is not None:
+                return False
+            ticket.staff_context = staff_context
+            ticket.suggested_reply = suggested_reply
+            ticket.suggested_citations = suggested_citations
+            db.commit()
+            return True
+        finally:
+            db.close()
+    except OperationalError:
+        logger.warning("Skip copilot save: Postgres is not available")
+        return False
+    except Exception:
+        logger.exception("Skip copilot save")
+        return False
+
+
+def get_ticket_for_staff(ticket_id: str) -> dict[str, Any] | None:
+    try:
+        db = SessionLocal()
+        try:
+            ticket = db.get(Ticket, uuid.UUID(ticket_id))
+            if ticket is None:
+                return None
+            context = ticket.staff_context
+            if not isinstance(context, dict):
+                context = {}
+            return {
+                "id": str(ticket.id),
+                "user_id": ticket.user_id,
+                "category": ticket.category.value,
+                "status": ticket.status.value,
+                "title": ticket.title,
+                "staff_context": context,
+                "suggested_reply": ticket.suggested_reply,
+                "suggested_citations": list(ticket.suggested_citations or []),
+            }
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("Skip staff ticket read")
+        return None

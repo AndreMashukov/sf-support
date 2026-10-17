@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.rag.graph import run_how_it_works
+from app.rag.ticket_graph import run_ticket_copilot
 from app.support_bus.bus import publish_event
 from app.support_bus.events import ask_completed_payload, new_write_id
 from app.support_bus.postgres_copy import (
@@ -19,10 +20,20 @@ from app.support_bus.postgres_copy import (
     persist_ask_run_from_result,
     persist_ticket,
     persist_ticket_message,
+    save_ticket_copilot,
+    ticket_copilot_already_ran,
     update_rag_run_latest_result,
+    upsert_account_snapshot,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def handle_support_event(event: dict[str, Any]) -> dict[str, Any] | None:
+    if str(event.get("event_type") or "") == "account.snapshot.updated":
+        upsert_account_snapshot(event)
+        return None
+    return handle_command(event)
 
 
 def handle_command(event: dict[str, Any]) -> dict[str, Any] | None:
@@ -281,7 +292,7 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
             "write_id": write_id,
         }
     ]
-    persist_ticket(
+    created = persist_ticket(
         ticket_id=ticket_id,
         user_id=user_id,
         user_email=user_email,
@@ -290,6 +301,45 @@ def _handle_create_ticket(event: dict[str, Any]) -> None:
         url=str(url) if url else None,
         messages=messages,
         write_id=write_id,
+    )
+    if created and category in {"bug", "billing"}:
+        _run_copilot_once(
+            ticket_id=str(ticket_id),
+            user_id=user_id,
+            query=query,
+        )
+
+
+def _run_copilot_once(*, ticket_id: str, user_id: str, query: str) -> None:
+    if ticket_copilot_already_ran(ticket_id):
+        return
+    try:
+        result = run_ticket_copilot(query=query, user_id=user_id, ticket_id=ticket_id)
+    except Exception:
+        logger.exception("Ticket copilot failed for %s", ticket_id)
+        save_ticket_copilot(
+            ticket_id=ticket_id,
+            staff_context={
+                "snapshot_missing": True,
+                "snapshot": None,
+                "chunk_ids": [],
+                "article_titles": [],
+                "snippets": [],
+                "no_draft_reason": None,
+                "copilot_error": "Copilot draft failed.",
+                "langsmith_run_id": None,
+                "enough_context": False,
+                "ticket_id": ticket_id,
+            },
+            suggested_reply=None,
+            suggested_citations=[],
+        )
+        return
+    save_ticket_copilot(
+        ticket_id=ticket_id,
+        staff_context=result["staff_context"],
+        suggested_reply=result.get("suggested_reply"),
+        suggested_citations=list(result.get("suggested_citations") or []),
     )
 
 

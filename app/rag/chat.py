@@ -237,6 +237,72 @@ def generate_cited_answer(
     return answer, citations
 
 
+def draft_staff_reply(
+    query: str,
+    chunks: list[dict[str, Any]],
+    snapshot: dict[str, Any] | None,
+) -> tuple[str, list[str]]:
+    if not chat_configured():
+        raise RuntimeError("TOGETHER_AI_API_KEY is not set")
+    allowed = _allowed_titles(chunks)
+    allowed_set = set(allowed)
+    account = "No account snapshot."
+    if snapshot:
+        account = (
+            "Account data (not a help article). Quote these fields exactly. "
+            "Do not subtract credits or state a remaining balance.\n"
+            f"subscription status: {snapshot.get('subscription_status')}\n"
+            f"billing status: {snapshot.get('billing_status')}\n"
+            f"usage limits setup: {snapshot.get('usage_limits_setup_id')}\n"
+            f"current period end: {snapshot.get('current_period_end')}\n"
+            f"cancel at period end: {snapshot.get('cancel_at_period_end')}\n"
+            f"pay as you go: {snapshot.get('pay_as_you_go_enabled')}\n"
+            f"included credits: {snapshot.get('included_credits')}\n"
+            f"spent credits: {snapshot.get('spent_credits')}"
+        )
+    system = (
+        "Write a suggested reply for support staff, not a message that closes "
+        "the ticket. Use only the help excerpts for product facts. "
+        "citation_titles must be a subset of the allowed titles. "
+        "If you mention credits, repeat included credits and spent credits "
+        "exactly and label them as account data. Do not compute a remaining "
+        "balance. Do not state a price. Do not promise a refund or a credit "
+        "change. Do not invent a plan or a job error."
+    )
+    human = (
+        f"User report:\n{query}\n\n"
+        f"{account}\n\n"
+        f"Help excerpts:\n{_format_chunks_for_prompt(chunks)}\n\n"
+        f"Allowed citation titles: {json.dumps(allowed)}"
+    )
+    model = _chat_model(
+        response_format=_json_schema_format("staff_draft", GENERATE_JSON_SCHEMA)
+    )
+    response = model.invoke(
+        [SystemMessage(content=system), HumanMessage(content=human)]
+    )
+    content = (
+        response.content if isinstance(response.content, str) else str(response.content)
+    )
+    parsed = _parse_json_content(content)
+    if parsed is None:
+        raise ValueError("Could not parse staff draft.")
+    answer = str(parsed.get("answer") or "").strip()
+    if not answer:
+        raise ValueError("Empty staff draft.")
+    raw_titles = parsed.get("citation_titles")
+    if not isinstance(raw_titles, list):
+        raw_titles = []
+    citations: list[str] = []
+    for title in raw_titles:
+        if not isinstance(title, str):
+            continue
+        trimmed = title.strip()
+        if trimmed in allowed_set and trimmed not in citations:
+            citations.append(trimmed)
+    return answer, citations
+
+
 def _allowed_titles(chunks: list[dict[str, Any]]) -> list[str]:
     titles: list[str] = []
     for chunk in chunks:

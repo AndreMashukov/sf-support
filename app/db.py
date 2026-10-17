@@ -61,9 +61,7 @@ def ensure_schema() -> None:
             text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS write_id varchar(64)")
         )
         conn.execute(
-            text(
-                "ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS enough_context boolean"
-            )
+            text("ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS enough_context boolean")
         )
         conn.execute(text("ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS answer text"))
         conn.execute(
@@ -76,14 +74,11 @@ def ensure_schema() -> None:
             text("ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS chunk_ids jsonb")
         )
         conn.execute(
-            text(
-                "ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS resolution varchar(32)"
-            )
+            text("ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS resolution varchar(32)")
         )
         conn.execute(
             text(
-                "ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS resolved_at "
-                "timestamptz"
+                "ALTER TABLE rag_runs ADD COLUMN IF NOT EXISTS resolved_at timestamptz"
             )
         )
         conn.execute(
@@ -96,5 +91,16 @@ def ensure_schema() -> None:
             text(
                 "CREATE INDEX IF NOT EXISTS ix_ask_messages_command_id "
                 "ON ask_messages (command_id)"
+            )
+        )
+        conn.execute(
+            text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS staff_context jsonb")
+        )
+        conn.execute(
+            text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS suggested_reply text")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS suggested_citations jsonb"
             )
         )

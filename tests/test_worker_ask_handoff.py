@@ -114,7 +114,9 @@ def test_complete_ask_turn_fails_when_message_append_fails(monkeypatch) -> None:
             "user_id": user_id,
         },
     )
-    monkeypatch.setattr(worker, "persist_ask_run_from_result", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        worker, "persist_ask_run_from_result", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(worker, "append_ask_message", lambda **kwargs: None)
 
     try:

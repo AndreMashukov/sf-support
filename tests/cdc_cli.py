@@ -61,7 +61,7 @@ def main() -> int:
     worker.list_ask_messages = lambda command_id: stored_messages  # type: ignore[method-assign]
     worker.list_ask_messages = lambda command_id: []  # type: ignore[method-assign]
     worker.get_rag_run_for_user = lambda command_id, user_id: None  # type: ignore[method-assign]
-    consumer.handle_command = worker.handle_command  # type: ignore[method-assign]
+    consumer.handle_support_event = worker.handle_support_event  # type: ignore[method-assign]
     materialize.get_doc = get_doc  # type: ignore[method-assign]
     materialize.set_doc = set_doc  # type: ignore[method-assign]
     bus.reset_memory()
@@ -91,7 +91,7 @@ def main() -> int:
     print("2. Pub/Sub POST /pubsub/push command.submitted")
     r2 = client.post("/pubsub/push", json=_envelope(submitted))
     print(f"   status={r2.status_code}")
-    print(f"   sot_written={ (ASK_SOT, command_id) in store }")
+    print(f"   sot_written={(ASK_SOT, command_id) in store}")
     domain = bus.memory_messages()
     completed = [m for m in domain if m["payload"].get("event_type") == "ask.completed"]
     print(f"   ask_completed={bool(completed)}")
