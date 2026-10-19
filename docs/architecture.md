@@ -24,7 +24,7 @@ StudyForge today has no ticketing. The web app only tells users to contact suppo
 | Graph | Small LangGraph: retrieve, grade context, generate or no-answer. Not a ReAct agent. |
 | Files | Text only. Optional URL. No uploads. |
 | Run | Docker Compose (FastAPI + `pgvector/pgvector`). Prod later: same images, not Firebase Hosting. |
-| Traces | LangSmith project `study-forge-support`. Not `study-forge`. |
+| Traces | LangSmith project `sf-support`. Not StudyForge app `study-forge`. |
 
 ## Goals and non-goals
 
@@ -56,7 +56,7 @@ flowchart LR
   pg[(Postgres pgvector plus FTS)]
   fb[Firebase Auth]
   llm[OpenRouter embeddings Together chat]
-  ls[LangSmith study-forge-support]
+  ls[LangSmith sf-support]
   user --> ui
   staff --> ui
   ui --> api
@@ -156,7 +156,7 @@ flowchart TD
 
 Bugs/billing never enter this graph except an optional retrieve-only helper for `staff_context`.
 
-Trace with `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT=study-forge-support`.
+Trace with `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT=sf-support`.
 
 ## Auth
 

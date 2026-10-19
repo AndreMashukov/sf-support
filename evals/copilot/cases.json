@@ -1,0 +1,68 @@
+[
+  {
+    "id": "answerable-credits",
+    "class": "answerable",
+    "query": "How many credits does a quiz cost?",
+    "snapshot": {
+      "subscription_status": "active",
+      "billing_status": "active",
+      "usage_limits_setup_id": "free-plan",
+      "current_period_end": null,
+      "cancel_at_period_end": false,
+      "pay_as_you_go_enabled": false,
+      "included_credits": 100,
+      "spent_credits": 10
+    },
+    "chunks": [
+      {
+        "chunk_id": "eval-chunk-1",
+        "article_title": "Using StudyForge",
+        "article_id": "eval-article-1",
+        "text": "Typical estimates for one item: a quiz costs about 5 credits. Support must use numbers from this table or from the in-app usage summary.",
+        "score": 0.9
+      }
+    ],
+    "expected_citation_titles": ["Using StudyForge"]
+  },
+  {
+    "id": "abstain-off-topic",
+    "class": "abstain",
+    "query": "Can you integrate with Salesforce CRM?",
+    "snapshot": null,
+    "chunks": [
+      {
+        "chunk_id": "eval-chunk-2",
+        "article_title": "Using StudyForge",
+        "article_id": "eval-article-1",
+        "text": "StudyForge stores materials in directories. Documents live in folders.",
+        "score": 0.3
+      }
+    ],
+    "expected_citation_titles": []
+  },
+  {
+    "id": "billing-trap-with-snapshot",
+    "class": "billing_trap_with_snapshot",
+    "query": "How many credits do I have left this month?",
+    "snapshot": {
+      "subscription_status": "active",
+      "billing_status": "active",
+      "usage_limits_setup_id": "pro-plan",
+      "current_period_end": "2026-11-01T00:00:00+00:00",
+      "cancel_at_period_end": false,
+      "pay_as_you_go_enabled": false,
+      "included_credits": 100,
+      "spent_credits": 20
+    },
+    "chunks": [],
+    "expected_citation_titles": []
+  },
+  {
+    "id": "billing-trap-no-snapshot",
+    "class": "billing_trap_no_snapshot",
+    "query": "What is my remaining credit balance?",
+    "snapshot": null,
+    "chunks": [],
+    "expected_citation_titles": []
+  }
+]

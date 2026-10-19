@@ -10,4 +10,4 @@ paths:
 - Index **Help articles** only. Never embed ticket bodies or billing amounts.
 - If zero chunks or grade says not enough: no-answer + Still need help. Do not invent credits.
 - Cite article titles. Together/MiniMax: disable thinking for structured JSON.
-- LangSmith project `study-forge-support`.
+- LangSmith project `sf-support`.

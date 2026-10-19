@@ -12,7 +12,7 @@ Python FastAPI app. Read [CONTEXT.md](CONTEXT.md) for domain terms. Spec: [docs/
 | RAG | LangGraph: retrieve, grade context, generate or no-answer. How-it-works only. |
 | Auth | Firebase ID token. Staff = `role: admin`. |
 | Models | OpenRouter e5 embeddings. Together/MiniMax chat. Thinking off for structured JSON. |
-| Traces | LangSmith project `study-forge-support` |
+| Traces | LangSmith project `sf-support` |
 | Run | Docker Compose. Not Firebase Hosting. Not the StudyForge NX monorepo. |
 
 ## Must follow

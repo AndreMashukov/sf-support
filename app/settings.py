@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     seed_on_startup: bool = False
     together_ai_api_key: str = ""
     together_chat_model: str = "zai-org/GLM-5.2"
-    langsmith_project: str = "study-forge-support"
+    langsmith_project: str = "sf-support"
     studyforge_web_url: str = ""
 
 

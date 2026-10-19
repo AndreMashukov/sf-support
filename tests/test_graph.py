@@ -138,10 +138,10 @@ def test_langsmith_project_env(monkeypatch) -> None:
     monkeypatch.delenv("LANGSMITH_PROJECT", raising=False)
     monkeypatch.setattr(
         "app.rag.graph.settings.langsmith_project",
-        "study-forge-support",
+        "sf-support",
     )
     run_how_it_works("q", "u")
-    assert os.environ.get("LANGSMITH_PROJECT") == "study-forge-support"
+    assert os.environ.get("LANGSMITH_PROJECT") == "sf-support"
 
 
 def test_graph_compiles_with_named_nodes() -> None:

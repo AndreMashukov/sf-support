@@ -14,7 +14,7 @@ The shell is in place: FastAPI routes, SQLAlchemy models, Docker Compose, seed m
 - Firebase ID token verify, `Principal` mapping, Jinja email sign-in, no anonymous tickets
 - Postgres Help index: pgvector + `tsvector`, seed ingest, chunk/embed/reindex
 - Hybrid search: vector cosine + FTS + RRF, top 6 chunks
-- How-it-works LangGraph: retrieve, grade, generate or no-answer (LangSmith `study-forge-support`)
+- How-it-works LangGraph: retrieve, grade, generate or no-answer (LangSmith `sf-support`)
 - User Support moves to StudyForge `/support`. Eventarc CDC copies label-hold (see architecture). Datastream is deferred.
 
 ## 1. Firebase sign-in
@@ -27,7 +27,7 @@ Done. Seed Help is `user-help.md` (end-user How it works) and `faq.md` only. Wor
 
 ## 3. Hybrid search and the how-it-works graph
 
-Done. Hybrid search returns top 6 chunks. `run_how_it_works` runs a LangGraph: retrieve, grade (skip LLM when zero chunks), generate cited answer or no-answer. Together via LangChain `ChatOpenAI`, thinking off. Traces use LangSmith project `study-forge-support`.
+Done. Hybrid search returns top 6 chunks. `run_how_it_works` runs a LangGraph: retrieve, grade (skip LLM when zero chunks), generate cited answer or no-answer. Together via LangChain `ChatOpenAI`, thinking off. Traces use LangSmith project `sf-support`.
 
 Bug and billing tickets do not enter this graph except an optional retrieve-only helper for `staff_context` (not wired).
 
